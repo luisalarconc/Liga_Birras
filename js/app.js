@@ -14,7 +14,7 @@ const firebaseConfig = {
 // Inicializar Firebase Realtime Database
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const dbRef = db.ref('beer_league');
+const dbRef = db.ref('liga-cervezas');
 
 // ==========================================================================
 // ESTADO LOCAL Y DATOS
