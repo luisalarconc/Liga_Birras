@@ -1,52 +1,75 @@
 // ==========================================================================
-// ESTADO Y DATOS INICIALES DE LA LIGA DE CERVEZAS
+// CONFIGURACIÓN DE FIREBASE (PEGA TUS CLAVES OBTENIDAS EN EL PASO 1 AQUÍ)
 // ==========================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBmYSgUb3eWOFBw1rvbJKMG210Oy3RtEH8",
+  authDomain: "liga-cervezas.firebaseapp.com",
+  databaseURL: "https://liga-cervezas-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "liga-cervezas",
+  storageBucket: "liga-cervezas.firebasestorage.app",
+  messagingSenderId: "217652660957",
+  appId: "1:217652660957:web:bc5f615e2932a57b1aa934"
+};
 
-// Imagen por defecto si un usuario no sube foto
+// Inicializar Firebase Realtime Database
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dbRef = db.ref('beer_league');
+
+// ==========================================================================
+// ESTADO LOCAL Y DATOS
+// ==========================================================================
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80';
 
-// Cargar o inicializar jugadores en LocalStorage
-let players = JSON.parse(localStorage.getItem('beer_league_players')) || [
-    { id: 1, name: 'Carlos', nickname: 'El Tanque', points: 15, moves: 4, beer: 'Voll-Damm', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80' },
-    { id: 2, name: 'Laura', nickname: 'La Cañera', points: 22, moves: 6, beer: 'Alhambra 1925', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' },
-    { id: 3, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' }
-];
+let players = [];
+let historyLog = [];
 
-// Cargar o inicializar historial VAR
-let historyLog = JSON.parse(localStorage.getItem('beer_league_history')) || [
-    {
-        id: 1,
-        playerId: 2,
-        playerName: 'Laura',
-        action: 'add',
-        points: 5,
-        reason: 'Pagó una ronda completa de cañas en el bar central',
-        date: '10/10/2024 21:30'
-    },
-    {
-        id: 2,
-        playerId: 3,
-        playerName: 'Dani',
-        action: 'subtract',
-        points: 3,
-        reason: 'Dejó calentar media jarra de cerveza',
-        date: '11/10/2024 22:15'
+// Escuchar cambios de la nube en TIEMPO REAL
+dbRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    
+    // Actualizar indicador de conexión
+    const statusBox = document.getElementById('sync-status');
+    if (statusBox) {
+        statusBox.textContent = '🟢 Liga conectada en tiempo real con la nube';
+        statusBox.classList.add('online');
     }
-];
 
-// Guardar datos en el almacenamiento local del navegador
-function saveData() {
-    localStorage.setItem('beer_league_players', JSON.stringify(players));
-    localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
+    if (data) {
+        players = data.players || [];
+        historyLog = data.historyLog || [];
+    } else {
+        // Si la base de datos está totalmente vacía, cargamos datos por defecto iniciales
+        players = [
+            { id: 1, name: 'Carlos', nickname: 'El Tanque', points: 15, moves: 4, beer: 'Voll-Damm', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80' },
+            { id: 2, name: 'Laura', nickname: 'La Cañera', points: 22, moves: 6, beer: 'Alhambra 1925', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' },
+            { id: 3, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' }
+        ];
+        historyLog = [];
+        saveDataToCloud();
+    }
+    renderAll();
+}, (error) => {
+    console.error("Error al conectar con la nube:", error);
+    const statusBox = document.getElementById('sync-status');
+    if (statusBox) {
+        statusBox.textContent = '⚠️ Revisa la configuración de Firebase en app.js';
+    }
+});
+
+// Guardar datos en la nube (Sincroniza automáticamente con todos los dispositivos)
+function saveDataToCloud() {
+    dbRef.set({
+        players: players,
+        historyLog: historyLog
+    });
 }
 
 // ==========================================================================
-// CONTROL DE NAVEGACIÓN (Pestañas)
+// CONTROL DE NAVEGACIÓN
 // ==========================================================================
-
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
-    renderAll();
     setupFormListeners();
 });
 
@@ -58,11 +81,9 @@ function initNavigation() {
         btn.addEventListener('click', () => {
             const targetTab = btn.getAttribute('data-tab');
 
-            // Cambiar clase activa en botones
             navButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            // Cambiar visibilidad de pestañas
             tabContents.forEach(content => {
                 content.classList.remove('active');
                 if (content.id === targetTab) {
@@ -76,7 +97,6 @@ function initNavigation() {
 // ==========================================================================
 // RENDERIZADO GENERAL
 // ==========================================================================
-
 function renderAll() {
     renderLeaderboard();
     renderPodium();
@@ -85,7 +105,7 @@ function renderAll() {
     renderHistory();
 }
 
-// 1. Renderizar Podio (Top 3)
+// 1. Podio Top 3
 function renderPodium() {
     const podiumContainer = document.getElementById('podium-container');
     const sorted = [...players].sort((a, b) => b.points - a.points);
@@ -127,13 +147,13 @@ function renderPodium() {
     `;
 }
 
-// 2. Renderizar Tabla de Clasificación
+// 2. Tabla de Clasificación
 function renderLeaderboard() {
     const tbody = document.getElementById('leaderboard-body');
     const sorted = [...players].sort((a, b) => b.points - a.points);
 
     if (sorted.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">No hay integrantes en la liga. ¡Añade algunos desde la pestaña Integrantes!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">No hay integrantes en la liga.</td></tr>`;
         return;
     }
 
@@ -156,7 +176,7 @@ function renderLeaderboard() {
     `).join('');
 }
 
-// 3. Renderizar Desplegable de Selección para Puntos
+// 3. Desplegable de Integrantes
 function renderPlayerSelect() {
     const select = document.getElementById('select-player');
     if (players.length === 0) {
@@ -169,7 +189,7 @@ function renderPlayerSelect() {
     `).join('');
 }
 
-// 4. Renderizar Cromos de Integrantes
+// 4. Cromos de Jugadores
 function renderPlayerCards() {
     const grid = document.getElementById('player-cards-grid');
 
@@ -181,8 +201,8 @@ function renderPlayerCards() {
     grid.innerHTML = players.map(p => `
         <div class="player-card">
             <div class="card-actions">
-                <button class="action-btn edit-player-btn" onclick="openEditModal(${p.id})" title="Editar perfil de ${p.name}">✏️</button>
-                <button class="action-btn delete-player-btn" onclick="deletePlayer(${p.id})" title="Eliminar a ${p.name}">🗑️</button>
+                <button class="action-btn edit-player-btn" onclick="openEditModal(${p.id})" title="Editar perfil">✏️</button>
+                <button class="action-btn delete-player-btn" onclick="deletePlayer(${p.id})" title="Eliminar integrante">🗑️</button>
             </div>
             <div class="player-avatar-box">
                 <img src="${p.avatar}" alt="${p.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
@@ -195,22 +215,20 @@ function renderPlayerCards() {
     `).join('');
 }
 
-// 5. Función para Eliminar Integrante
+// 5. Eliminar Integrante
 window.deletePlayer = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
 
-    const confirmed = confirm(`⚠️ ¿Estás seguro de que deseas eliminar a "${player.name} (${player.nickname})" de la liga?`);
+    const confirmed = confirm(`⚠️ ¿Estás seguro de que deseas eliminar a "${player.name} (${player.nickname})" de la nube?`);
     
     if (confirmed) {
         players = players.filter(p => p.id !== id);
-        saveData();
-        renderAll();
-        alert(`🗑️ "${player.name}" ha sido eliminado de la liga.`);
+        saveDataToCloud();
     }
 };
 
-// 6. Funciones del Modal de Edición de Perfil
+// 6. Modal de Edición
 window.openEditModal = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
@@ -222,16 +240,14 @@ window.openEditModal = function(id) {
     document.getElementById('edit-avatar-url').value = '';
     document.getElementById('edit-avatar-file').value = '';
 
-    const modal = document.getElementById('edit-modal');
-    modal.classList.add('active');
+    document.getElementById('edit-modal').classList.add('active');
 };
 
 window.closeEditModal = function() {
-    const modal = document.getElementById('edit-modal');
-    modal.classList.remove('active');
+    document.getElementById('edit-modal').classList.remove('active');
 };
 
-// 7. Renderizar Historial VAR
+// 7. Historial VAR
 function renderHistory() {
     const historyContainer = document.getElementById('history-list');
 
@@ -262,21 +278,51 @@ function renderHistory() {
     }).join('');
 }
 
-// ==========================================================================
-// PROCESAMIENTO DE FORMULARIOS
-// ==========================================================================
+// COMPRESOR / REDIMENSIONADOR DE IMÁGENES
+function compressImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 200; // Redimensiona a un máximo de 200px para carga ultrarrápida
+            let width = img.width;
+            let height = img.height;
 
+            if (width > height) {
+                if (width > maxDim) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                }
+            } else {
+                if (height > maxDim) {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            callback(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ==========================================================================
+// FORMULARIOS DE ACCIÓN
+// ==========================================================================
 function setupFormListeners() {
-    // Formulario de Sumar / Restar Puntos
+    // Formulario de Puntos
     const pointsForm = document.getElementById('points-form');
     pointsForm.addEventListener('submit', (e) => {
         e.preventDefault();
 
         const playerId = parseInt(document.getElementById('select-player').value);
-        if (!playerId) {
-            alert("Selecciona un integrante válido.");
-            return;
-        }
+        if (!playerId) return;
 
         const action = document.getElementById('point-action').value;
         const amount = parseInt(document.getElementById('point-amount').value);
@@ -305,14 +351,11 @@ function setupFormListeners() {
             date: dateStr
         });
 
-        saveData();
-        renderAll();
-
+        saveDataToCloud();
         document.getElementById('point-reason').value = '';
-        alert(`✅ ¡Acción registrada correctamente para ${player.name}!`);
     });
 
-    // Formulario de Registrar Nuevo Integrante
+    // Registrar Nuevo Integrante
     const registerForm = document.getElementById('register-player-form');
     registerForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -336,19 +379,14 @@ function setupFormListeners() {
             };
 
             players.push(newPlayer);
-            saveData();
-            renderAll();
-
+            saveDataToCloud();
             registerForm.reset();
-            alert(`🎉 ¡Bienvenido a la Liga, ${name} "${nickname}"!`);
         };
 
         if (avatarFile) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                createPlayer(event.target.result);
-            };
-            reader.readAsDataURL(avatarFile);
+            compressImage(avatarFile, (compressedBase64) => {
+                createPlayer(compressedBase64);
+            });
         } else if (avatarUrl !== '') {
             createPlayer(avatarUrl);
         } else {
@@ -356,7 +394,7 @@ function setupFormListeners() {
         }
     });
 
-    // Formulario de Editar Integrante
+    // Editar Integrante
     const editForm = document.getElementById('edit-player-form');
     editForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -381,7 +419,6 @@ function setupFormListeners() {
                 player.avatar = photoSrc;
             }
 
-            // Actualizar nombre en el historial antiguo si ha cambiado
             if (oldName !== newName) {
                 historyLog.forEach(item => {
                     if (item.playerId === player.id) {
@@ -390,22 +427,18 @@ function setupFormListeners() {
                 });
             }
 
-            saveData();
-            renderAll();
+            saveDataToCloud();
             closeEditModal();
-            alert(`✏️ ¡Perfil de "${newName}" actualizado correctamente!`);
         };
 
         if (avatarFile) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                updatePlayer(event.target.result);
-            };
-            reader.readAsDataURL(avatarFile);
+            compressImage(avatarFile, (compressedBase64) => {
+                updatePlayer(compressedBase64);
+            });
         } else if (avatarUrl !== '') {
             updatePlayer(avatarUrl);
         } else {
-            updatePlayer(null); // Mantiene la foto anterior
+            updatePlayer(null);
         }
     });
 }
