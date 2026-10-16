@@ -119,6 +119,7 @@
                         <li><strong>Idiosincrasia:</strong> Carácter, ambiente y alma del local.</li>
                         <li><strong>Papeo:</strong> Calidad de la tapa o comida.</li>
                         <li><strong>Precio:</strong> Relación calidad/precio.</li>
+                        <li><strong>Parcabilidad:</strong> Facilidad de aparcamiento en la zona.</li>
                     </ul>
                 </div>
 
@@ -211,11 +212,11 @@
 
                 <!-- FORMULARIO DE CATEGORÍAS (1 A 10 PTS) -->
                 <div class="form-card my-2">
-                    <h4>⭐ Tu Valoración del Bar (Categorías 1 a 10)</h4>
+                    <h4>⭐ Tu Valoración del Bar (7 Categorías, 1 a 10)</h4>
                     <form id="bar-rating-form">
                         <div class="form-group">
-                            <label for="evaluator-name">Tu Nombre (Evaluador/a):</label>
-                            <input type="text" id="evaluator-name" placeholder="Ej: Laura" required>
+                            <label for="evaluator-name">Selecciona tu Nombre (Miembro de la Liga):</label>
+                            <select id="evaluator-name" required></select>
                         </div>
 
                         <div class="rating-categories-grid">
@@ -248,6 +249,11 @@
                                 <label for="rate-precio">Precio (1-10):</label>
                                 <span class="rating-desc">Relación calidad / precio de la ronda</span>
                                 <input type="number" id="rate-precio" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-parcabilidad">Parcabilidad (1-10):</label>
+                                <span class="rating-desc">Facilidad de aparcamiento en la zona</span>
+                                <input type="number" id="rate-parcabilidad" min="1" max="10" step="0.5" value="7" required>
                             </div>
                         </div>
 

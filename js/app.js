@@ -197,14 +197,16 @@ function renderLeaderboard() {
     `).join('');
 }
 
-// 3. Desplegables de Selección
+// 3. Desplegables de Selección (Puntos, Promotor y Evaluador/a)
 function renderPlayerSelect() {
     const select = document.getElementById('select-player');
     const selectPromoter = document.getElementById('session-promoter');
+    const selectEvaluator = document.getElementById('evaluator-name');
 
     if (players.length === 0) {
         if (select) select.innerHTML = '<option value="">No hay integrantes</option>';
         if (selectPromoter) selectPromoter.innerHTML = '<option value="">No hay integrantes</option>';
+        if (selectEvaluator) selectEvaluator.innerHTML = '<option value="">No hay integrantes</option>';
         return;
     }
 
@@ -214,8 +216,13 @@ function renderPlayerSelect() {
         <option value="${p.id}">${p.name} "${p.nickname}" (${Number(p.points).toFixed(2)} pts)</option>
     `).join('');
 
+    const evaluatorOptionsHTML = sortedByName.map(p => `
+        <option value="${p.name}">${p.name} "${p.nickname}"</option>
+    `).join('');
+
     if (select) select.innerHTML = optionsHTML;
     if (selectPromoter) selectPromoter.innerHTML = optionsHTML;
+    if (selectEvaluator) selectEvaluator.innerHTML = evaluatorOptionsHTML;
 }
 
 // 4. Cromos de Jugadores
@@ -262,8 +269,9 @@ function renderBarEvaluationSection() {
         document.getElementById('votes-count').textContent = `${ratings.length} formulario(s) enviado(s)`;
 
         if (ratings.length > 0) {
+            // Media de cada formulario (7 categorías)
             const formAverages = ratings.map(r => 
-                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
+                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
             );
             const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
             document.getElementById('live-average-score').textContent = totalAvg.toFixed(2);
@@ -279,7 +287,7 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
-// Renderizar las tascas puntuadas con DESGLOSE INDIVIDUAL DE VOTOS
+// Renderizar las tascas puntuadas con DESGLOSE INDIVIDUAL DE VOTOS (7 CATEGORÍAS)
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
 
@@ -291,13 +299,13 @@ function renderEvaluatedBarsHistory() {
     const reversed = [...evaluatedBars].reverse();
 
     listContainer.innerHTML = reversed.map(bar => {
-        // Generar el bloque HTML con los votos individuales de cada amigo
         const individualVotesHTML = (bar.ratings && bar.ratings.length > 0)
             ? `<details class="individual-votes-accordion">
                 <summary>🔍 Ver votaciones individuales (${bar.ratings.length} integrantes)</summary>
                 <div class="individual-votes-list">
                     ${bar.ratings.map(r => {
-                        const userAvg = ((r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6).toFixed(1);
+                        const parcVal = r.parcabilidad !== undefined ? r.parcabilidad : 7;
+                        const userAvg = ((r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + parcVal) / 7).toFixed(1);
                         return `
                             <div class="user-vote-card">
                                 <div class="user-vote-header">
@@ -311,6 +319,7 @@ function renderEvaluatedBarsHistory() {
                                     <span>Idio: <strong>${r.idiosincrasia}</strong></span>
                                     <span>Papeo: <strong>${r.papeo}</strong></span>
                                     <span>Prec: <strong>${r.precio}</strong></span>
+                                    <span>Parc: <strong>${r.parcabilidad !== undefined ? r.parcabilidad : '-'}</strong></span>
                                 </div>
                             </div>
                         `;
@@ -336,6 +345,7 @@ function renderEvaluatedBarsHistory() {
                     <span>Idiosincrasia: <strong>${bar.catAvg.idiosincrasia}</strong></span>
                     <span>Papeo: <strong>${bar.catAvg.papeo}</strong></span>
                     <span>Precio: <strong>${bar.catAvg.precio}</strong></span>
+                    <span>Parcabilidad: <strong>${bar.catAvg.parcabilidad || '-'}</strong></span>
                 </div>
 
                 ${individualVotesHTML}
@@ -474,13 +484,14 @@ function setupFormListeners() {
             e.preventDefault();
             if (!currentBarSession || !currentBarSession.active) return;
 
-            const evaluatorName = document.getElementById('evaluator-name').value.trim();
+            const evaluatorName = document.getElementById('evaluator-name').value;
             const originalidad = parseFloat(document.getElementById('rate-originalidad').value);
             const formato = parseFloat(document.getElementById('rate-formato').value);
             const gelibilidad = parseFloat(document.getElementById('rate-gelibilidad').value);
             const idiosincrasia = parseFloat(document.getElementById('rate-idiosincrasia').value);
             const papeo = parseFloat(document.getElementById('rate-papeo').value);
             const precio = parseFloat(document.getElementById('rate-precio').value);
+            const parcabilidad = parseFloat(document.getElementById('rate-parcabilidad').value);
 
             const rating = {
                 evaluatorName,
@@ -489,7 +500,8 @@ function setupFormListeners() {
                 gelibilidad,
                 idiosincrasia,
                 papeo,
-                precio
+                precio,
+                parcabilidad
             };
 
             if (!currentBarSession.ratings) currentBarSession.ratings = [];
@@ -512,8 +524,9 @@ function setupFormListeners() {
                 return;
             }
 
+            // Media de las 7 categorías por formulario
             const formAverages = ratings.map(r => 
-                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
+                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
             );
 
             const finalScore = formAverages.reduce((acc, v) => acc + v, 0) / formAverages.length;
@@ -525,7 +538,8 @@ function setupFormListeners() {
                 gelibilidad: (ratings.reduce((acc, r) => acc + r.gelibilidad, 0) / ratings.length).toFixed(1),
                 idiosincrasia: (ratings.reduce((acc, r) => acc + r.idiosincrasia, 0) / ratings.length).toFixed(1),
                 papeo: (ratings.reduce((acc, r) => acc + r.papeo, 0) / ratings.length).toFixed(1),
-                precio: (ratings.reduce((acc, r) => acc + r.precio, 0) / ratings.length).toFixed(1)
+                precio: (ratings.reduce((acc, r) => acc + r.precio, 0) / ratings.length).toFixed(1),
+                parcabilidad: (ratings.reduce((acc, r) => acc + (r.parcabilidad !== undefined ? r.parcabilidad : 7), 0) / ratings.length).toFixed(1)
             };
 
             const promoter = players.find(p => p.id === currentBarSession.promoterId);
@@ -548,7 +562,6 @@ function setupFormListeners() {
             });
 
             if (!evaluatedBars) evaluatedBars = [];
-            // AHORA GUARDAMOS TAMBIÉN EL ARRAY 'ratings' CON LOS VOTOS INDIVIDUALES
             evaluatedBars.push({
                 barName: currentBarSession.barName,
                 promoterName: currentBarSession.promoterName,
