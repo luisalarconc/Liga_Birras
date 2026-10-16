@@ -33,6 +33,13 @@ body {
     flex-direction: column;
 }
 
+/* MARGENES AUXILIARES */
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mb-2 { margin-bottom: 2rem; }
+.my-2 { margin: 2rem 0; }
+.text-center { text-align: center; }
+
 /* BANDA DE ESTADO DE SINCRONIZACIÓN */
 .sync-status {
     background: #111723;
@@ -317,7 +324,116 @@ body {
     background: var(--bg-card-hover);
 }
 
-/* FORMULARIOS */
+/* ESTILOS PARA VALORACIÓN DE BARES */
+.active-bar-banner {
+    background: linear-gradient(135deg, #1e283a 0%, #0d121b 100%);
+    border: 2px solid var(--accent-gold);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.badge-status {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--accent-green);
+    border: 1px solid var(--accent-green);
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.score-live-box {
+    background: #0b0e14;
+    border: 1px solid var(--border-color);
+    padding: 0.8rem 1.2rem;
+    border-radius: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.score-value {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    color: var(--accent-gold);
+    line-height: 1;
+}
+
+.rating-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.rating-box {
+    background: #0d121b;
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.rating-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.highlight-card {
+    border-color: var(--accent-green);
+    background: linear-gradient(180deg, rgba(46, 204, 113, 0.05) 0%, var(--bg-card) 100%);
+}
+
+.bars-history-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.bar-history-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.2rem;
+}
+
+.bar-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.8rem;
+}
+
+.bar-score-badge {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    color: var(--accent-gold);
+}
+
+.category-scores-list {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.3rem;
+}
+
+/* FORMULARIOS GENERALES */
 .form-card {
     background: var(--bg-card);
     padding: 2rem;

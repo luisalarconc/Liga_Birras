@@ -30,6 +30,7 @@
             <nav class="main-nav">
                 <button class="nav-btn active" data-tab="inicio">🏠 Inicio & Normas</button>
                 <button class="nav-btn" data-tab="clasificacion">🏆 Clasificación</button>
+                <button class="nav-btn" data-tab="evaluar-bar">📝 Valoración de Bar</button>
                 <button class="nav-btn" data-tab="gestion-puntos">⚡ Gestor de Puntos</button>
                 <button class="nav-btn" data-tab="integrantes">👥 Integrantes</button>
                 <button class="nav-btn" data-tab="historial">📜 Bitácora VAR</button>
@@ -165,7 +166,118 @@
             </div>
         </section>
 
-        <!-- SECCIÓN 3: GESTIÓN DE PUNTOS -->
+        <!-- SECCIÓN NUEVA: VALORACIÓN DEL BAR DEL JUEVES -->
+        <section id="evaluar-bar" class="tab-content">
+            <div class="section-title">
+                <h3>📝 Evaluador Oficial de Tascas (Jornadas Jueves)</h3>
+                <span class="subtitle">Puntuación del bar de la semana y asignación al Promotor</span>
+            </div>
+
+            <!-- CONFIGURAR O MOSTRAR JORNADA ACTIVA -->
+            <div class="form-card mb-2" id="session-setup-card">
+                <h4>🚀 Iniciar Nueva Evaluación de Jueves</h4>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                    Selecciona al promotor del bar de esta semana para habilitar las votaciones del grupo.
+                </p>
+                <form id="start-session-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="session-promoter">Promotor (Elegido según orden alfabético):</label>
+                            <select id="session-promoter" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-bar-name">Nombre del Bar / Tasca:</label>
+                            <input type="text" id="session-bar-name" placeholder="Ej: Bar El Resbalón" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">🍻 Abrir Votaciones para el Grupo</button>
+                </form>
+            </div>
+
+            <!-- PANEL DE VOTACIÓN CUANDO HAY JORNADA ABIERTA -->
+            <div id="active-session-panel" style="display:none;">
+                <div class="active-bar-banner">
+                    <div>
+                        <span class="badge-status">🟢 JORNADA ABIERTA</span>
+                        <h3 id="active-bar-title">Bar El Resbalón</h3>
+                        <p id="active-promoter-name">Promotor: Carlos</p>
+                    </div>
+                    <div class="score-live-box">
+                        <span class="score-label">Media Actual</span>
+                        <span class="score-value" id="live-average-score">0.00</span>
+                        <small id="votes-count">0 votaciones</small>
+                    </div>
+                </div>
+
+                <!-- FORMULARIO DE CATEGORÍAS (1 A 10 PTS) -->
+                <div class="form-card my-2">
+                    <h4>⭐ Tu Valoración del Bar (Categorías 1 a 10)</h4>
+                    <form id="bar-rating-form">
+                        <div class="form-group">
+                            <label for="evaluator-name">Tu Nombre (Evaluador/a):</label>
+                            <input type="text" id="evaluator-name" placeholder="Ej: Laura" required>
+                        </div>
+
+                        <div class="rating-categories-grid">
+                            <div class="rating-box">
+                                <label for="rate-originalidad">Originalidad (1-10):</label>
+                                <span class="rating-desc">Ocurrencia de la propuesta del bar</span>
+                                <input type="number" id="rate-originalidad" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-formato">Formato (1-10):</label>
+                                <span class="rating-desc">Presentación e instalaciones</span>
+                                <input type="number" id="rate-formato" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-gelibilidad">Gelibilidad (1-10):</label>
+                                <span class="rating-desc">Temperatura fría de las jarras/cañas</span>
+                                <input type="number" id="rate-gelibilidad" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-idiosincrasia">Idiosincrasia (1-10):</label>
+                                <span class="rating-desc">Alma, ambiente y solera de tasca</span>
+                                <input type="number" id="rate-idiosincrasia" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-papeo">Papeo (1-10):</label>
+                                <span class="rating-desc">Calidad de las tapas y comida</span>
+                                <input type="number" id="rate-papeo" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                            <div class="rating-box">
+                                <label for="rate-precio">Precio (1-10):</label>
+                                <span class="rating-desc">Relación calidad / precio de la ronda</span>
+                                <input type="number" id="rate-precio" min="1" max="10" step="0.5" value="7" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary mt-1">📩 Enviar mi Valoración</button>
+                    </form>
+                </div>
+
+                <!-- CIERRE Y SUMA AL PROMOTOR -->
+                <div class="form-card text-center highlight-card">
+                    <h4>🏁 Cerrar Evaluación y Asignar Puntos</h4>
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Al hacer clic se calculará la <strong>media de todos los formularios</strong> enviados y se le sumará esa nota directamente a los puntos del Promotor en la clasificación.
+                    </p>
+                    <button id="close-session-btn" class="btn-primary" style="background:#2ecc71; color:#000;">
+                        🏆 Cerrar Jornada y Asignar Puntos al Promotor
+                    </button>
+                </div>
+            </div>
+
+            <!-- HISTÓRICO DE BARES EVALUADOS -->
+            <div class="section-title mt-2">
+                <h3>📜 Histórico de Bares Evaluados</h3>
+                <span class="subtitle">Ranking de tascas de la temporada</span>
+            </div>
+            <div id="evaluated-bars-list" class="bars-history-grid">
+                <!-- Se genera dinámicamente con JS -->
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: GESTIÓN DE PUNTOS -->
         <section id="gestion-puntos" class="tab-content">
             <div class="section-title">
                 <h3>⚡ Registro de Puntos (Acta Oficial)</h3>
@@ -206,7 +318,7 @@
             </div>
         </section>
 
-        <!-- SECCIÓN 4: INTEGRANTES -->
+        <!-- SECCIÓN 5: INTEGRANTES -->
         <section id="integrantes" class="tab-content">
             <div class="section-title">
                 <h3>👥 Plantilla de Jugadores</h3>
@@ -253,7 +365,7 @@
             </div>
         </section>
 
-        <!-- SECCIÓN 5: HISTORIAL / VAR -->
+        <!-- SECCIÓN 6: HISTORIAL / VAR -->
         <section id="historial" class="tab-content">
             <div class="section-title">
                 <h3>📜 Bitácora VAR & Auditoría</h3>

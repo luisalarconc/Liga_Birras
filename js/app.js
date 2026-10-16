@@ -1,5 +1,5 @@
 // ==========================================================================
-// CONFIGURACIÓN DE FIREBASE (PEGA TUS CLAVES OBTENIDAS EN EL PASO 1 AQUÍ)
+// CONFIGURACIÓN DE FIREBASE (PEGA AQUÍ TUS CLAVES REALES DE FIREBASE)
 // ==========================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyBmYSgUb3eWOFBw1rvbJKMG210Oy3RtEH8",
@@ -23,12 +23,13 @@ const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf37
 
 let players = [];
 let historyLog = [];
+let currentBarSession = null; // Guardará la jornada activa de votación de bar
+let evaluatedBars = [];       // Histórico de bares evaluados
 
 // Escuchar cambios de la nube en TIEMPO REAL
 dbRef.on('value', (snapshot) => {
     const data = snapshot.val();
     
-    // Actualizar indicador de conexión
     const statusBox = document.getElementById('sync-status');
     if (statusBox) {
         statusBox.textContent = '🟢 Liga conectada en tiempo real con la nube';
@@ -38,14 +39,18 @@ dbRef.on('value', (snapshot) => {
     if (data) {
         players = data.players || [];
         historyLog = data.historyLog || [];
+        currentBarSession = data.currentBarSession || null;
+        evaluatedBars = data.evaluatedBars || [];
     } else {
-        // Si la base de datos está totalmente vacía, cargamos datos por defecto iniciales
+        // Datos iniciales si la nube estuviera vacía
         players = [
             { id: 1, name: 'Carlos', nickname: 'El Tanque', points: 15, moves: 4, beer: 'Voll-Damm', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80' },
-            { id: 2, name: 'Laura', nickname: 'La Cañera', points: 22, moves: 6, beer: 'Alhambra 1925', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' },
-            { id: 3, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' }
+            { id: 2, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' },
+            { id: 3, name: 'Laura', nickname: 'La Cañera', points: 22, moves: 6, beer: 'Alhambra 1925', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' }
         ];
         historyLog = [];
+        currentBarSession = null;
+        evaluatedBars = [];
         saveDataToCloud();
     }
     renderAll();
@@ -57,11 +62,13 @@ dbRef.on('value', (snapshot) => {
     }
 });
 
-// Guardar datos en la nube (Sincroniza automáticamente con todos los dispositivos)
+// Guardar todo el estado en la Nube
 function saveDataToCloud() {
     dbRef.set({
         players: players,
-        historyLog: historyLog
+        historyLog: historyLog,
+        currentBarSession: currentBarSession,
+        evaluatedBars: evaluatedBars
     });
 }
 
@@ -103,6 +110,7 @@ function renderAll() {
     renderPlayerSelect();
     renderPlayerCards();
     renderHistory();
+    renderBarEvaluationSection();
 }
 
 // 1. Podio Top 3
@@ -125,7 +133,7 @@ function renderPodium() {
                 <img src="${top2.avatar}" alt="${top2.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top2.name}</h4>
-            <p>${top2.points} pts</p>
+            <p>${Number(top2.points).toFixed(2)} pts</p>
             <span class="podium-badge">🥈 2º Lugar</span>
         </div>
         <div class="podium-item first">
@@ -133,7 +141,7 @@ function renderPodium() {
                 <img src="${top1.avatar}" alt="${top1.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top1.name}</h4>
-            <p>${top1.points} pts</p>
+            <p>${Number(top1.points).toFixed(2)} pts</p>
             <span class="podium-badge">🏆 1º Líder</span>
         </div>
         <div class="podium-item third">
@@ -141,7 +149,7 @@ function renderPodium() {
                 <img src="${top3.avatar}" alt="${top3.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top3.name}</h4>
-            <p>${top3.points} pts</p>
+            <p>${Number(top3.points).toFixed(2)} pts</p>
             <span class="podium-badge">🥉 3º Lugar</span>
         </div>
     `;
@@ -171,22 +179,31 @@ function renderLeaderboard() {
             </td>
             <td>🍺 ${p.beer}</td>
             <td>${p.moves} acciones</td>
-            <td><strong style="color:var(--accent-gold); font-size:1.1rem;">${p.points} pts</strong></td>
+            <td><strong style="color:var(--accent-gold); font-size:1.1rem;">${Number(p.points).toFixed(2)} pts</strong></td>
         </tr>
     `).join('');
 }
 
-// 3. Desplegable de Integrantes
+// 3. Desplegables de Selección de Integrantes
 function renderPlayerSelect() {
     const select = document.getElementById('select-player');
+    const selectPromoter = document.getElementById('session-promoter');
+
     if (players.length === 0) {
-        select.innerHTML = '<option value="">No hay integrantes disponibles</option>';
+        if (select) select.innerHTML = '<option value="">No hay integrantes</option>';
+        if (selectPromoter) selectPromoter.innerHTML = '<option value="">No hay integrantes</option>';
         return;
     }
 
-    select.innerHTML = players.map(p => `
-        <option value="${p.id}">${p.name} "${p.nickname}" (${p.points} pts)</option>
+    // Orden alfabético para elegir promotor según norma 1
+    const sortedByName = [...players].sort((a, b) => a.name.localeCompare(b.name));
+
+    const optionsHTML = sortedByName.map(p => `
+        <option value="${p.id}">${p.name} "${p.nickname}" (${Number(p.points).toFixed(2)} pts)</option>
     `).join('');
+
+    if (select) select.innerHTML = optionsHTML;
+    if (selectPromoter) selectPromoter.innerHTML = optionsHTML;
 }
 
 // 4. Cromos de Jugadores
@@ -209,8 +226,79 @@ function renderPlayerCards() {
             </div>
             <h4>${p.name}</h4>
             <div class="player-nickname">"${p.nickname}"</div>
-            <div class="player-score">${p.points} <span style="font-size:1rem">PTS</span></div>
+            <div class="player-score">${Number(p.points).toFixed(2)} <span style="font-size:1rem">PTS</span></div>
             <div class="player-beer">Fav: <strong>${p.beer}</strong></div>
+        </div>
+    `).join('');
+}
+
+// ==========================================================================
+// SECCIÓN DE VALORACIÓN DE BAR DEL JUEVES
+// ==========================================================================
+function renderBarEvaluationSection() {
+    const setupCard = document.getElementById('session-setup-card');
+    const activePanel = document.getElementById('active-session-panel');
+
+    if (currentBarSession && currentBarSession.active) {
+        setupCard.style.display = 'none';
+        activePanel.style.display = 'block';
+
+        document.getElementById('active-bar-title').textContent = currentBarSession.barName;
+        document.getElementById('active-promoter-name').textContent = `Promotor: ${currentBarSession.promoterName}`;
+
+        // Cálculo de medias actuales
+        const ratings = currentBarSession.ratings || [];
+        document.getElementById('votes-count').textContent = `${ratings.length} formulario(s) enviado(s)`;
+
+        if (ratings.length > 0) {
+            // Media de cada formulario (Suma de sus 6 categorías / 6)
+            const formAverages = ratings.map(r => 
+                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
+            );
+            // Media global de todos los formularios
+            const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
+            document.getElementById('live-average-score').textContent = totalAvg.toFixed(2);
+        } else {
+            document.getElementById('live-average-score').textContent = '0.00';
+        }
+
+    } else {
+        setupCard.style.display = 'block';
+        activePanel.style.display = 'none';
+    }
+
+    // Renderizar histórico de tascas
+    renderEvaluatedBarsHistory();
+}
+
+// Renderizar las tascas puntuadas en el pasado
+function renderEvaluatedBarsHistory() {
+    const listContainer = document.getElementById('evaluated-bars-list');
+
+    if (!evaluatedBars || evaluatedBars.length === 0) {
+        listContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; grid-column:1/-1;">Aún no se ha completado ninguna evaluación de bar esta temporada.</p>';
+        return;
+    }
+
+    const reversed = [...evaluatedBars].reverse();
+
+    listContainer.innerHTML = reversed.map(bar => `
+        <div class="bar-history-card">
+            <div class="bar-history-header">
+                <div>
+                    <h4>🍻 ${bar.barName}</h4>
+                    <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName}</strong> | 📅 ${bar.date}</small>
+                </div>
+                <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
+            </div>
+            <div class="category-scores-list">
+                <span>Originalidad: <strong>${bar.catAvg.originalidad}</strong></span>
+                <span>Formato: <strong>${bar.catAvg.formato}</strong></span>
+                <span>Gelibilidad: <strong>${bar.catAvg.gelibilidad}</strong></span>
+                <span>Idiosincrasia: <strong>${bar.catAvg.idiosincrasia}</strong></span>
+                <span>Papeo: <strong>${bar.catAvg.papeo}</strong></span>
+                <span>Precio: <strong>${bar.catAvg.precio}</strong></span>
+            </div>
         </div>
     `).join('');
 }
@@ -270,7 +358,7 @@ function renderHistory() {
                     <p class="history-reason">💬 "${item.reason}"</p>
                 </div>
                 <div class="history-meta">
-                    <span class="history-badge ${cssClass}">${sign}${item.points} PTS</span>
+                    <span class="history-badge ${cssClass}">${sign}${Number(item.points).toFixed(2)} PTS</span>
                     <span class="history-date">📅 ${item.date}</span>
                 </div>
             </div>
@@ -278,14 +366,14 @@ function renderHistory() {
     }).join('');
 }
 
-// COMPRESOR / REDIMENSIONADOR DE IMÁGENES
+// Compresor de fotos
 function compressImage(file, callback) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
             const canvas = document.createElement('canvas');
-            const maxDim = 200; // Redimensiona a un máximo de 200px para carga ultrarrápida
+            const maxDim = 200;
             let width = img.width;
             let height = img.height;
 
@@ -313,132 +401,268 @@ function compressImage(file, callback) {
 }
 
 // ==========================================================================
-// FORMULARIOS DE ACCIÓN
+// FORMULARIOS Y EVENTOS
 // ==========================================================================
 function setupFormListeners() {
-    // Formulario de Puntos
-    const pointsForm = document.getElementById('points-form');
-    pointsForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    // Abrir jornada de evaluación
+    const startSessionForm = document.getElementById('start-session-form');
+    if (startSessionForm) {
+        startSessionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const promoterId = parseInt(document.getElementById('session-promoter').value);
+            const barName = document.getElementById('session-bar-name').value.trim();
 
-        const playerId = parseInt(document.getElementById('select-player').value);
-        if (!playerId) return;
+            const promoter = players.find(p => p.id === promoterId);
+            if (!promoter) return;
 
-        const action = document.getElementById('point-action').value;
-        const amount = parseInt(document.getElementById('point-amount').value);
-        const reason = document.getElementById('point-reason').value.trim();
+            currentBarSession = {
+                active: true,
+                promoterId: promoter.id,
+                promoterName: promoter.name,
+                barName: barName,
+                ratings: []
+            };
 
-        const player = players.find(p => p.id === playerId);
-        if (!player) return;
-
-        if (action === 'add') {
-            player.points += amount;
-        } else {
-            player.points -= amount;
-        }
-        player.moves += 1;
-
-        const now = new Date();
-        const dateStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-
-        historyLog.push({
-            id: Date.now(),
-            playerId: player.id,
-            playerName: player.name,
-            action: action,
-            points: amount,
-            reason: reason,
-            date: dateStr
+            saveDataToCloud();
+            alert(`🍻 ¡Jornada abierta para "${barName}"! Los integrantes ya pueden votar.`);
         });
+    }
 
-        saveDataToCloud();
-        document.getElementById('point-reason').value = '';
-    });
+    // Enviar voto de valoración de bar
+    const barRatingForm = document.getElementById('bar-rating-form');
+    if (barRatingForm) {
+        barRatingForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!currentBarSession || !currentBarSession.active) return;
+
+            const evaluatorName = document.getElementById('evaluator-name').value.trim();
+            const originalidad = parseFloat(document.getElementById('rate-originalidad').value);
+            const formato = parseFloat(document.getElementById('rate-formato').value);
+            const gelibilidad = parseFloat(document.getElementById('rate-gelibilidad').value);
+            const idiosincrasia = parseFloat(document.getElementById('rate-idiosincrasia').value);
+            const papeo = parseFloat(document.getElementById('rate-papeo').value);
+            const precio = parseFloat(document.getElementById('rate-precio').value);
+
+            const rating = {
+                evaluatorName,
+                originalidad,
+                formato,
+                gelibilidad,
+                idiosincrasia,
+                papeo,
+                precio
+            };
+
+            if (!currentBarSession.ratings) currentBarSession.ratings = [];
+            currentBarSession.ratings.push(rating);
+
+            saveDataToCloud();
+            alert(`✅ ¡Gracias ${evaluatorName}! Tu valoración ha sido enviada.`);
+            barRatingForm.reset();
+        });
+    }
+
+    // Cerrar Jornada y calcular puntos finales para el Promotor
+    const closeSessionBtn = document.getElementById('close-session-btn');
+    if (closeSessionBtn) {
+        closeSessionBtn.addEventListener('click', () => {
+            if (!currentBarSession || !currentBarSession.active) return;
+            const ratings = currentBarSession.ratings || [];
+
+            if (ratings.length === 0) {
+                alert("⚠️ Debe haber al menos un formulario de valoración enviado para poder cerrar la jornada.");
+                return;
+            }
+
+            // 1. Media de cada formulario
+            const formAverages = ratings.map(r => 
+                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
+            );
+
+            // 2. Media final de todos los formularios
+            const finalScore = formAverages.reduce((acc, v) => acc + v, 0) / formAverages.length;
+            const roundedScore = parseFloat(finalScore.toFixed(2));
+
+            // Medias individuales por categoría para el histórico
+            const catAvg = {
+                originalidad: (ratings.reduce((acc, r) => acc + r.originalidad, 0) / ratings.length).toFixed(1),
+                formato: (ratings.reduce((acc, r) => acc + r.formato, 0) / ratings.length).toFixed(1),
+                gelibilidad: (ratings.reduce((acc, r) => acc + r.gelibilidad, 0) / ratings.length).toFixed(1),
+                idiosincrasia: (ratings.reduce((acc, r) => acc + r.idiosincrasia, 0) / ratings.length).toFixed(1),
+                papeo: (ratings.reduce((acc, r) => acc + r.papeo, 0) / ratings.length).toFixed(1),
+                precio: (ratings.reduce((acc, r) => acc + r.precio, 0) / ratings.length).toFixed(1)
+            };
+
+            // 3. Sumar puntos al promotor
+            const promoter = players.find(p => p.id === currentBarSession.promoterId);
+            if (promoter) {
+                promoter.points = (parseFloat(promoter.points) || 0) + roundedScore;
+                promoter.moves = (promoter.moves || 0) + 1;
+            }
+
+            // 4. Registrar en Bitácora VAR
+            const now = new Date();
+            const dateStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            historyLog.push({
+                id: Date.now(),
+                playerId: currentBarSession.promoterId,
+                playerName: currentBarSession.promoterName,
+                action: 'add',
+                points: roundedScore,
+                reason: `Valoración oficial del bar "${currentBarSession.barName}" (${ratings.length} votos, Nota: ${roundedScore}/10)`,
+                date: dateStr
+            });
+
+            // 5. Guardar en histórico de bares y cerrar sesión
+            if (!evaluatedBars) evaluatedBars = [];
+            evaluatedBars.push({
+                barName: currentBarSession.barName,
+                promoterName: currentBarSession.promoterName,
+                finalScore: roundedScore,
+                catAvg: catAvg,
+                date: now.toLocaleDateString()
+            });
+
+            currentBarSession = { active: false };
+
+            saveDataToCloud();
+            alert(`🎉 ¡Jornada cerrada! Se le han sumado +${roundedScore} puntos a ${promoter ? promoter.name : 'Promotor'}.`);
+        });
+    }
+
+    // Formulario de Sumar / Restar Puntos manuales
+    const pointsForm = document.getElementById('points-form');
+    if (pointsForm) {
+        pointsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const playerId = parseInt(document.getElementById('select-player').value);
+            if (!playerId) return;
+
+            const action = document.getElementById('point-action').value;
+            const amount = parseFloat(document.getElementById('point-amount').value);
+            const reason = document.getElementById('point-reason').value.trim();
+
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            if (action === 'add') {
+                player.points = (parseFloat(player.points) || 0) + amount;
+            } else {
+                player.points = (parseFloat(player.points) || 0) - amount;
+            }
+            player.moves = (player.moves || 0) + 1;
+
+            const now = new Date();
+            const dateStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            historyLog.push({
+                id: Date.now(),
+                playerId: player.id,
+                playerName: player.name,
+                action: action,
+                points: amount,
+                reason: reason,
+                date: dateStr
+            });
+
+            saveDataToCloud();
+            document.getElementById('point-reason').value = '';
+            alert(`✅ ¡Acción registrada para ${player.name}!`);
+        });
+    }
 
     // Registrar Nuevo Integrante
     const registerForm = document.getElementById('register-player-form');
-    registerForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    if (registerForm) {
+        registerForm.addEventListener('submit', (e) => {
+            e.preventDefault();
 
-        const name = document.getElementById('new-name').value.trim();
-        const nickname = document.getElementById('new-nickname').value.trim();
-        const beer = document.getElementById('new-beer').value.trim();
-        
-        const avatarFile = document.getElementById('new-avatar-file').files[0];
-        const avatarUrl = document.getElementById('new-avatar-url').value.trim();
+            const name = document.getElementById('new-name').value.trim();
+            const nickname = document.getElementById('new-nickname').value.trim();
+            const beer = document.getElementById('new-beer').value.trim();
+            
+            const avatarFile = document.getElementById('new-avatar-file').files[0];
+            const avatarUrl = document.getElementById('new-avatar-url').value.trim();
 
-        const createPlayer = (photoSrc) => {
-            const newPlayer = {
-                id: Date.now(),
-                name,
-                nickname,
-                points: 0,
-                moves: 0,
-                beer,
-                avatar: photoSrc || DEFAULT_AVATAR
+            const createPlayer = (photoSrc) => {
+                const newPlayer = {
+                    id: Date.now(),
+                    name,
+                    nickname,
+                    points: 0,
+                    moves: 0,
+                    beer,
+                    avatar: photoSrc || DEFAULT_AVATAR
+                };
+
+                players.push(newPlayer);
+                saveDataToCloud();
+                registerForm.reset();
+                alert(`🎉 ¡Bienvenido/a a la Liga, ${name}!`);
             };
 
-            players.push(newPlayer);
-            saveDataToCloud();
-            registerForm.reset();
-        };
-
-        if (avatarFile) {
-            compressImage(avatarFile, (compressedBase64) => {
-                createPlayer(compressedBase64);
-            });
-        } else if (avatarUrl !== '') {
-            createPlayer(avatarUrl);
-        } else {
-            createPlayer(DEFAULT_AVATAR);
-        }
-    });
+            if (avatarFile) {
+                compressImage(avatarFile, (compressedBase64) => {
+                    createPlayer(compressedBase64);
+                });
+            } else if (avatarUrl !== '') {
+                createPlayer(avatarUrl);
+            } else {
+                createPlayer(DEFAULT_AVATAR);
+            }
+        });
+    }
 
     // Editar Integrante
     const editForm = document.getElementById('edit-player-form');
-    editForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    if (editForm) {
+        editForm.addEventListener('submit', (e) => {
+            e.preventDefault();
 
-        const id = parseInt(document.getElementById('edit-player-id').value);
-        const player = players.find(p => p.id === id);
-        if (!player) return;
+            const id = parseInt(document.getElementById('edit-player-id').value);
+            const player = players.find(p => p.id === id);
+            if (!player) return;
 
-        const oldName = player.name;
-        const newName = document.getElementById('edit-name').value.trim();
-        const newNickname = document.getElementById('edit-nickname').value.trim();
-        const newBeer = document.getElementById('edit-beer').value.trim();
-        
-        const avatarFile = document.getElementById('edit-avatar-file').files[0];
-        const avatarUrl = document.getElementById('edit-avatar-url').value.trim();
+            const oldName = player.name;
+            const newName = document.getElementById('edit-name').value.trim();
+            const newNickname = document.getElementById('edit-nickname').value.trim();
+            const newBeer = document.getElementById('edit-beer').value.trim();
+            
+            const avatarFile = document.getElementById('edit-avatar-file').files[0];
+            const avatarUrl = document.getElementById('edit-avatar-url').value.trim();
 
-        const updatePlayer = (photoSrc) => {
-            player.name = newName;
-            player.nickname = newNickname;
-            player.beer = newBeer;
-            if (photoSrc) {
-                player.avatar = photoSrc;
-            }
+            const updatePlayer = (photoSrc) => {
+                player.name = newName;
+                player.nickname = newNickname;
+                player.beer = newBeer;
+                if (photoSrc) {
+                    player.avatar = photoSrc;
+                }
 
-            if (oldName !== newName) {
-                historyLog.forEach(item => {
-                    if (item.playerId === player.id) {
-                        item.playerName = newName;
-                    }
+                if (oldName !== newName) {
+                    historyLog.forEach(item => {
+                        if (item.playerId === player.id) {
+                            item.playerName = newName;
+                        }
+                    });
+                }
+
+                saveDataToCloud();
+                closeEditModal();
+                alert(`✏️ ¡Perfil actualizado!`);
+            };
+
+            if (avatarFile) {
+                compressImage(avatarFile, (compressedBase64) => {
+                    updatePlayer(compressedBase64);
                 });
+            } else if (avatarUrl !== '') {
+                updatePlayer(avatarUrl);
+            } else {
+                updatePlayer(null);
             }
-
-            saveDataToCloud();
-            closeEditModal();
-        };
-
-        if (avatarFile) {
-            compressImage(avatarFile, (compressedBase64) => {
-                updatePlayer(compressedBase64);
-            });
-        } else if (avatarUrl !== '') {
-            updatePlayer(avatarUrl);
-        } else {
-            updatePlayer(null);
-        }
-    });
+        });
+    }
 }
