@@ -399,7 +399,7 @@ body {
 
 .bars-history-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
 }
 
@@ -431,6 +431,65 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.3rem;
+}
+
+/* DESGLOSE DE VOTOS INDIVIDUALES EN HISTORIAL */
+.individual-votes-accordion {
+    margin-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 0.8rem;
+}
+
+.individual-votes-accordion summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--accent-gold);
+    font-weight: 600;
+    outline: none;
+}
+
+.individual-votes-accordion summary:hover {
+    color: var(--accent-gold-light);
+}
+
+.individual-votes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+}
+
+.user-vote-card {
+    background: #0d121b;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+}
+
+.user-vote-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+
+.user-avg-badge {
+    background: rgba(243, 156, 18, 0.15);
+    color: var(--accent-gold);
+    border: 1px solid var(--accent-gold);
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.user-vote-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
 }
 
 /* FORMULARIOS GENERALES */
@@ -807,4 +866,5 @@ input:focus, select:focus, textarea:focus {
     .podium-item.first { order: 1; transform: none; }
     .podium-item.second { order: 2; }
     .podium-item.third { order: 3; }
+    .user-vote-details { grid-template-columns: repeat(2, 1fr); }
 }

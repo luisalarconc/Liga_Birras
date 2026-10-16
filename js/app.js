@@ -23,8 +23,8 @@ const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf37
 
 let players = [];
 let historyLog = [];
-let currentBarSession = null; // Guardará la jornada activa de votación de bar
-let evaluatedBars = [];       // Histórico de bares evaluados
+let currentBarSession = null;
+let evaluatedBars = [];
 
 // Escuchar cambios de la nube en TIEMPO REAL
 dbRef.on('value', (snapshot) => {
@@ -36,13 +36,21 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    if (data) {
-        players = data.players || [];
+    const localPlayers = JSON.parse(localStorage.getItem('beer_league_players')) || [];
+    const localHistory = JSON.parse(localStorage.getItem('beer_league_history')) || [];
+
+    if (data && data.players && data.players.length > 0) {
+        players = data.players;
         historyLog = data.historyLog || [];
         currentBarSession = data.currentBarSession || null;
         evaluatedBars = data.evaluatedBars || [];
+    } else if (localPlayers.length > 0) {
+        players = localPlayers;
+        historyLog = localHistory;
+        currentBarSession = (data && data.currentBarSession) ? data.currentBarSession : null;
+        evaluatedBars = (data && data.evaluatedBars) ? data.evaluatedBars : [];
+        saveDataToCloud();
     } else {
-        // Datos iniciales si la nube estuviera vacía
         players = [
             { id: 1, name: 'Carlos', nickname: 'El Tanque', points: 15, moves: 4, beer: 'Voll-Damm', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80' },
             { id: 2, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' },
@@ -53,6 +61,10 @@ dbRef.on('value', (snapshot) => {
         evaluatedBars = [];
         saveDataToCloud();
     }
+
+    localStorage.setItem('beer_league_players', JSON.stringify(players));
+    localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
+
     renderAll();
 }, (error) => {
     console.error("Error al conectar con la nube:", error);
@@ -62,7 +74,6 @@ dbRef.on('value', (snapshot) => {
     }
 });
 
-// Guardar todo el estado en la Nube
 function saveDataToCloud() {
     dbRef.set({
         players: players,
@@ -70,6 +81,8 @@ function saveDataToCloud() {
         currentBarSession: currentBarSession,
         evaluatedBars: evaluatedBars
     });
+    localStorage.setItem('beer_league_players', JSON.stringify(players));
+    localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
 }
 
 // ==========================================================================
@@ -184,7 +197,7 @@ function renderLeaderboard() {
     `).join('');
 }
 
-// 3. Desplegables de Selección de Integrantes
+// 3. Desplegables de Selección
 function renderPlayerSelect() {
     const select = document.getElementById('select-player');
     const selectPromoter = document.getElementById('session-promoter');
@@ -195,7 +208,6 @@ function renderPlayerSelect() {
         return;
     }
 
-    // Orden alfabético para elegir promotor según norma 1
     const sortedByName = [...players].sort((a, b) => a.name.localeCompare(b.name));
 
     const optionsHTML = sortedByName.map(p => `
@@ -246,16 +258,13 @@ function renderBarEvaluationSection() {
         document.getElementById('active-bar-title').textContent = currentBarSession.barName;
         document.getElementById('active-promoter-name').textContent = `Promotor: ${currentBarSession.promoterName}`;
 
-        // Cálculo de medias actuales
         const ratings = currentBarSession.ratings || [];
         document.getElementById('votes-count').textContent = `${ratings.length} formulario(s) enviado(s)`;
 
         if (ratings.length > 0) {
-            // Media de cada formulario (Suma de sus 6 categorías / 6)
             const formAverages = ratings.map(r => 
                 (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
             );
-            // Media global de todos los formularios
             const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
             document.getElementById('live-average-score').textContent = totalAvg.toFixed(2);
         } else {
@@ -267,11 +276,10 @@ function renderBarEvaluationSection() {
         activePanel.style.display = 'none';
     }
 
-    // Renderizar histórico de tascas
     renderEvaluatedBarsHistory();
 }
 
-// Renderizar las tascas puntuadas en el pasado
+// Renderizar las tascas puntuadas con DESGLOSE INDIVIDUAL DE VOTOS
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
 
@@ -282,25 +290,58 @@ function renderEvaluatedBarsHistory() {
 
     const reversed = [...evaluatedBars].reverse();
 
-    listContainer.innerHTML = reversed.map(bar => `
-        <div class="bar-history-card">
-            <div class="bar-history-header">
-                <div>
-                    <h4>🍻 ${bar.barName}</h4>
-                    <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName}</strong> | 📅 ${bar.date}</small>
+    listContainer.innerHTML = reversed.map(bar => {
+        // Generar el bloque HTML con los votos individuales de cada amigo
+        const individualVotesHTML = (bar.ratings && bar.ratings.length > 0)
+            ? `<details class="individual-votes-accordion">
+                <summary>🔍 Ver votaciones individuales (${bar.ratings.length} integrantes)</summary>
+                <div class="individual-votes-list">
+                    ${bar.ratings.map(r => {
+                        const userAvg = ((r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6).toFixed(1);
+                        return `
+                            <div class="user-vote-card">
+                                <div class="user-vote-header">
+                                    <strong>👤 ${r.evaluatorName}</strong>
+                                    <span class="user-avg-badge">${userAvg} / 10</span>
+                                </div>
+                                <div class="user-vote-details">
+                                    <span>Orig: <strong>${r.originalidad}</strong></span>
+                                    <span>Form: <strong>${r.formato}</strong></span>
+                                    <span>Geli: <strong>${r.gelibilidad}</strong></span>
+                                    <span>Idio: <strong>${r.idiosincrasia}</strong></span>
+                                    <span>Papeo: <strong>${r.papeo}</strong></span>
+                                    <span>Prec: <strong>${r.precio}</strong></span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
+               </details>`
+            : '<p style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.5rem;">Sin desglose de votos guardado.</p>';
+
+        return `
+            <div class="bar-history-card">
+                <div class="bar-history-header">
+                    <div>
+                        <h4>🍻 ${bar.barName}</h4>
+                        <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName}</strong> | 📅 ${bar.date}</small>
+                    </div>
+                    <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
+                </div>
+                
+                <div class="category-scores-list">
+                    <span>Originalidad: <strong>${bar.catAvg.originalidad}</strong></span>
+                    <span>Formato: <strong>${bar.catAvg.formato}</strong></span>
+                    <span>Gelibilidad: <strong>${bar.catAvg.gelibilidad}</strong></span>
+                    <span>Idiosincrasia: <strong>${bar.catAvg.idiosincrasia}</strong></span>
+                    <span>Papeo: <strong>${bar.catAvg.papeo}</strong></span>
+                    <span>Precio: <strong>${bar.catAvg.precio}</strong></span>
+                </div>
+
+                ${individualVotesHTML}
             </div>
-            <div class="category-scores-list">
-                <span>Originalidad: <strong>${bar.catAvg.originalidad}</strong></span>
-                <span>Formato: <strong>${bar.catAvg.formato}</strong></span>
-                <span>Gelibilidad: <strong>${bar.catAvg.gelibilidad}</strong></span>
-                <span>Idiosincrasia: <strong>${bar.catAvg.idiosincrasia}</strong></span>
-                <span>Papeo: <strong>${bar.catAvg.papeo}</strong></span>
-                <span>Precio: <strong>${bar.catAvg.precio}</strong></span>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // 5. Eliminar Integrante
@@ -404,7 +445,6 @@ function compressImage(file, callback) {
 // FORMULARIOS Y EVENTOS
 // ==========================================================================
 function setupFormListeners() {
-    // Abrir jornada de evaluación
     const startSessionForm = document.getElementById('start-session-form');
     if (startSessionForm) {
         startSessionForm.addEventListener('submit', (e) => {
@@ -428,7 +468,6 @@ function setupFormListeners() {
         });
     }
 
-    // Enviar voto de valoración de bar
     const barRatingForm = document.getElementById('bar-rating-form');
     if (barRatingForm) {
         barRatingForm.addEventListener('submit', (e) => {
@@ -462,7 +501,6 @@ function setupFormListeners() {
         });
     }
 
-    // Cerrar Jornada y calcular puntos finales para el Promotor
     const closeSessionBtn = document.getElementById('close-session-btn');
     if (closeSessionBtn) {
         closeSessionBtn.addEventListener('click', () => {
@@ -474,16 +512,13 @@ function setupFormListeners() {
                 return;
             }
 
-            // 1. Media de cada formulario
             const formAverages = ratings.map(r => 
                 (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio) / 6
             );
 
-            // 2. Media final de todos los formularios
             const finalScore = formAverages.reduce((acc, v) => acc + v, 0) / formAverages.length;
             const roundedScore = parseFloat(finalScore.toFixed(2));
 
-            // Medias individuales por categoría para el histórico
             const catAvg = {
                 originalidad: (ratings.reduce((acc, r) => acc + r.originalidad, 0) / ratings.length).toFixed(1),
                 formato: (ratings.reduce((acc, r) => acc + r.formato, 0) / ratings.length).toFixed(1),
@@ -493,14 +528,12 @@ function setupFormListeners() {
                 precio: (ratings.reduce((acc, r) => acc + r.precio, 0) / ratings.length).toFixed(1)
             };
 
-            // 3. Sumar puntos al promotor
             const promoter = players.find(p => p.id === currentBarSession.promoterId);
             if (promoter) {
                 promoter.points = (parseFloat(promoter.points) || 0) + roundedScore;
                 promoter.moves = (promoter.moves || 0) + 1;
             }
 
-            // 4. Registrar en Bitácora VAR
             const now = new Date();
             const dateStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -514,13 +547,14 @@ function setupFormListeners() {
                 date: dateStr
             });
 
-            // 5. Guardar en histórico de bares y cerrar sesión
             if (!evaluatedBars) evaluatedBars = [];
+            // AHORA GUARDAMOS TAMBIÉN EL ARRAY 'ratings' CON LOS VOTOS INDIVIDUALES
             evaluatedBars.push({
                 barName: currentBarSession.barName,
                 promoterName: currentBarSession.promoterName,
                 finalScore: roundedScore,
                 catAvg: catAvg,
+                ratings: ratings,
                 date: now.toLocaleDateString()
             });
 
@@ -531,7 +565,6 @@ function setupFormListeners() {
         });
     }
 
-    // Formulario de Sumar / Restar Puntos manuales
     const pointsForm = document.getElementById('points-form');
     if (pointsForm) {
         pointsForm.addEventListener('submit', (e) => {
@@ -573,7 +606,6 @@ function setupFormListeners() {
         });
     }
 
-    // Registrar Nuevo Integrante
     const registerForm = document.getElementById('register-player-form');
     if (registerForm) {
         registerForm.addEventListener('submit', (e) => {
@@ -615,7 +647,6 @@ function setupFormListeners() {
         });
     }
 
-    // Editar Integrante
     const editForm = document.getElementById('edit-player-form');
     if (editForm) {
         editForm.addEventListener('submit', (e) => {
