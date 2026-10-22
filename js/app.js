@@ -67,7 +67,7 @@ function saveDataToCloud() {
 }
 
 // ==========================================================================
-// CONTROL DE NAVEGACIÓN
+// CONTROL DE NAVEGACIÓN Y MENÚ DESPLEGABLE MÓVIL
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
@@ -77,6 +77,20 @@ document.addEventListener('DOMContentLoaded', () => {
 function initNavigation() {
     const navButtons = document.querySelectorAll('.nav-btn');
     const tabContents = document.querySelectorAll('.tab-content');
+    const menuToggle = document.getElementById('menu-toggle');
+    const mainNav = document.getElementById('main-nav');
+    const menuIcon = document.getElementById('menu-icon');
+
+    // Alternar menú hamburguesa en dispositivos móviles
+    if (menuToggle && mainNav) {
+        menuToggle.addEventListener('click', () => {
+            mainNav.classList.toggle('open');
+            const isOpen = mainNav.classList.contains('open');
+            if (menuIcon) {
+                menuIcon.textContent = isOpen ? '✕' : '☰';
+            }
+        });
+    }
 
     navButtons.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -91,6 +105,12 @@ function initNavigation() {
                     content.classList.add('active');
                 }
             });
+
+            // Cerrar menú desplegable al hacer clic en una pestaña en versión móvil
+            if (mainNav && mainNav.classList.contains('open')) {
+                mainNav.classList.remove('open');
+                if (menuIcon) menuIcon.textContent = '☰';
+            }
         });
     });
 }
@@ -280,7 +300,7 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
-// Histórico de Bares
+// Histórico de Bares Evaluados
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
     if (!listContainer) return;
@@ -412,7 +432,7 @@ function renderHistory() {
         return `
             <div class="history-item ${cssClass}">
                 <div class="history-details">
-                    ##### 👤 ${item.playerName}
+                    <h5>👤 ${item.playerName}</h5>
                     <p class="history-reason">💬 "${item.reason}"</p>
                 </div>
                 <div class="history-meta">
