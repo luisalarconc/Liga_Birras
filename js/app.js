@@ -36,7 +36,7 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    // Carga segura de datos (evita cierres si se borraron nodos en Firebase)
+    // Carga segura de datos
     players = Array.isArray(data.players) ? data.players : [];
     historyLog = Array.isArray(data.historyLog) ? data.historyLog : [];
     evaluatedBars = Array.isArray(data.evaluatedBars) ? data.evaluatedBars : [];
@@ -412,7 +412,7 @@ function renderHistory() {
         return `
             <div class="history-item ${cssClass}">
                 <div class="history-details">
-                    <h5>👤 ${item.playerName}</h5>
+                    ##### 👤 ${item.playerName}
                     <p class="history-reason">💬 "${item.reason}"</p>
                 </div>
                 <div class="history-meta">
@@ -488,13 +488,20 @@ function setupFormListeners() {
             if (!currentBarSession || !currentBarSession.active) return;
 
             const evaluatorName = document.getElementById('evaluator-name').value;
-            const originalidad = parseFloat(document.getElementById('rate-originalidad').value);
-            const formato = parseFloat(document.getElementById('rate-formato').value);
-            const gelibilidad = parseFloat(document.getElementById('rate-gelibilidad').value);
-            const idiosincrasia = parseFloat(document.getElementById('rate-idiosincrasia').value);
-            const papeo = parseFloat(document.getElementById('rate-papeo').value);
-            const precio = parseFloat(document.getElementById('rate-precio').value);
-            const parcabilidad = parseFloat(document.getElementById('rate-parcabilidad').value);
+
+            // Lógica transparente para convertir comas (,) en puntos decimales (.)
+            const parseVal = (id) => {
+                const raw = document.getElementById(id).value;
+                return parseFloat(String(raw).replace(',', '.')) || 0;
+            };
+
+            const originalidad = parseVal('rate-originalidad');
+            const formato = parseVal('rate-formato');
+            const gelibilidad = parseVal('rate-gelibilidad');
+            const idiosincrasia = parseVal('rate-idiosincrasia');
+            const papeo = parseVal('rate-papeo');
+            const precio = parseVal('rate-precio');
+            const parcabilidad = parseVal('rate-parcabilidad');
 
             const rating = {
                 evaluatorName, originalidad, formato, gelibilidad, idiosincrasia, papeo, precio, parcabilidad
