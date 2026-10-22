@@ -26,9 +26,9 @@ let historyLog = [];
 let currentBarSession = null;
 let evaluatedBars = [];
 
-// Escuchar cambios de la nube en TIEMPO REAL
+// Escuchar cambios de la nube en TIEMPO REAL con protección ante datos nulos
 dbRef.on('value', (snapshot) => {
-    const data = snapshot.val();
+    const data = snapshot.val() || {};
     
     const statusBox = document.getElementById('sync-status');
     if (statusBox) {
@@ -36,32 +36,13 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    const localPlayers = JSON.parse(localStorage.getItem('beer_league_players')) || [];
-    const localHistory = JSON.parse(localStorage.getItem('beer_league_history')) || [];
+    // Carga segura de datos (evita cierres si se borraron nodos en Firebase)
+    players = Array.isArray(data.players) ? data.players : [];
+    historyLog = Array.isArray(data.historyLog) ? data.historyLog : [];
+    evaluatedBars = Array.isArray(data.evaluatedBars) ? data.evaluatedBars : [];
+    currentBarSession = data.currentBarSession || null;
 
-    if (data && data.players && data.players.length > 0) {
-        players = data.players;
-        historyLog = data.historyLog || [];
-        currentBarSession = data.currentBarSession || null;
-        evaluatedBars = data.evaluatedBars || [];
-    } else if (localPlayers.length > 0) {
-        players = localPlayers;
-        historyLog = localHistory;
-        currentBarSession = (data && data.currentBarSession) ? data.currentBarSession : null;
-        evaluatedBars = (data && data.evaluatedBars) ? data.evaluatedBars : [];
-        saveDataToCloud();
-    } else {
-        players = [
-            { id: 1, name: 'Carlos', nickname: 'El Tanque', points: 15, moves: 4, beer: 'Voll-Damm', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80' },
-            { id: 2, name: 'Dani', nickname: 'El Caliente', points: 8, moves: 3, beer: 'Mahou Cinco Estrellas', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' },
-            { id: 3, name: 'Laura', nickname: 'La Cañera', points: 22, moves: 6, beer: 'Alhambra 1925', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' }
-        ];
-        historyLog = [];
-        currentBarSession = null;
-        evaluatedBars = [];
-        saveDataToCloud();
-    }
-
+    // Respaldo local
     localStorage.setItem('beer_league_players', JSON.stringify(players));
     localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
 
@@ -129,6 +110,8 @@ function renderAll() {
 // 1. Podio Top 3
 function renderPodium() {
     const podiumContainer = document.getElementById('podium-container');
+    if (!podiumContainer) return;
+
     const sorted = [...players].sort((a, b) => b.points - a.points);
 
     if (sorted.length < 1) {
@@ -171,6 +154,8 @@ function renderPodium() {
 // 2. Tabla de Clasificación
 function renderLeaderboard() {
     const tbody = document.getElementById('leaderboard-body');
+    if (!tbody) return;
+
     const sorted = [...players].sort((a, b) => b.points - a.points);
 
     if (sorted.length === 0) {
@@ -197,7 +182,7 @@ function renderLeaderboard() {
     `).join('');
 }
 
-// 3. Desplegables de Selección (Puntos, Promotor y Evaluador/a)
+// 3. Desplegables de Selección
 function renderPlayerSelect() {
     const select = document.getElementById('select-player');
     const selectPromoter = document.getElementById('session-promoter');
@@ -228,6 +213,7 @@ function renderPlayerSelect() {
 // 4. Cromos de Jugadores
 function renderPlayerCards() {
     const grid = document.getElementById('player-cards-grid');
+    if (!grid) return;
 
     if (players.length === 0) {
         grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:var(--text-secondary)">No hay integrantes registrados.</p>';
@@ -258,25 +244,32 @@ function renderBarEvaluationSection() {
     const setupCard = document.getElementById('session-setup-card');
     const activePanel = document.getElementById('active-session-panel');
 
+    if (!setupCard || !activePanel) return;
+
     if (currentBarSession && currentBarSession.active) {
         setupCard.style.display = 'none';
         activePanel.style.display = 'block';
 
-        document.getElementById('active-bar-title').textContent = currentBarSession.barName;
-        document.getElementById('active-promoter-name').textContent = `Promotor: ${currentBarSession.promoterName}`;
+        const barTitle = document.getElementById('active-bar-title');
+        const promoterName = document.getElementById('active-promoter-name');
+        if (barTitle) barTitle.textContent = currentBarSession.barName;
+        if (promoterName) promoterName.textContent = `Promotor: ${currentBarSession.promoterName}`;
 
         const ratings = currentBarSession.ratings || [];
-        document.getElementById('votes-count').textContent = `${ratings.length} formulario(s) enviado(s)`;
+        const votesCount = document.getElementById('votes-count');
+        if (votesCount) votesCount.textContent = `${ratings.length} formulario(s) enviado(s)`;
 
-        if (ratings.length > 0) {
-            // Media de cada formulario (7 categorías)
-            const formAverages = ratings.map(r => 
-                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
-            );
-            const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
-            document.getElementById('live-average-score').textContent = totalAvg.toFixed(2);
-        } else {
-            document.getElementById('live-average-score').textContent = '0.00';
+        const liveAverage = document.getElementById('live-average-score');
+        if (liveAverage) {
+            if (ratings.length > 0) {
+                const formAverages = ratings.map(r => 
+                    (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
+                );
+                const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
+                liveAverage.textContent = totalAvg.toFixed(2);
+            } else {
+                liveAverage.textContent = '0.00';
+            }
         }
 
     } else {
@@ -287,18 +280,19 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
-// Renderizar las tascas puntuadas con DESGLOSE INDIVIDUAL DE VOTOS (7 CATEGORÍAS)
+// Histórico de Bares
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
+    if (!listContainer) return;
 
     if (!evaluatedBars || evaluatedBars.length === 0) {
         listContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; grid-column:1/-1;">Aún no se ha completado ninguna evaluación de bar esta temporada.</p>';
         return;
     }
 
-    const reversed = [...evaluatedBars].reverse();
+    const reversedWithIndices = evaluatedBars.map((bar, index) => ({ bar, index })).reverse();
 
-    listContainer.innerHTML = reversed.map(bar => {
+    listContainer.innerHTML = reversedWithIndices.map(({ bar, index }) => {
         const individualVotesHTML = (bar.ratings && bar.ratings.length > 0)
             ? `<details class="individual-votes-accordion">
                 <summary>🔍 Ver votaciones individuales (${bar.ratings.length} integrantes)</summary>
@@ -335,17 +329,20 @@ function renderEvaluatedBarsHistory() {
                         <h4>🍻 ${bar.barName}</h4>
                         <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName}</strong> | 📅 ${bar.date}</small>
                     </div>
-                    <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
+                    <div style="display:flex; align-items:center; gap:0.8rem;">
+                        <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
+                        <button class="action-btn delete-player-btn" onclick="deleteEvaluatedBar(${index})" title="Eliminar este bar del registro">🗑️</button>
+                    </div>
                 </div>
                 
                 <div class="category-scores-list">
-                    <span>Originalidad: <strong>${bar.catAvg.originalidad}</strong></span>
-                    <span>Formato: <strong>${bar.catAvg.formato}</strong></span>
-                    <span>Gelibilidad: <strong>${bar.catAvg.gelibilidad}</strong></span>
-                    <span>Idiosincrasia: <strong>${bar.catAvg.idiosincrasia}</strong></span>
-                    <span>Papeo: <strong>${bar.catAvg.papeo}</strong></span>
-                    <span>Precio: <strong>${bar.catAvg.precio}</strong></span>
-                    <span>Parcabilidad: <strong>${bar.catAvg.parcabilidad || '-'}</strong></span>
+                    <span>Originalidad: <strong>${bar.catAvg ? bar.catAvg.originalidad : '-'}</strong></span>
+                    <span>Formato: <strong>${bar.catAvg ? bar.catAvg.formato : '-'}</strong></span>
+                    <span>Gelibilidad: <strong>${bar.catAvg ? bar.catAvg.gelibilidad : '-'}</strong></span>
+                    <span>Idiosincrasia: <strong>${bar.catAvg ? bar.catAvg.idiosincrasia : '-'}</strong></span>
+                    <span>Papeo: <strong>${bar.catAvg ? bar.catAvg.papeo : '-'}</strong></span>
+                    <span>Precio: <strong>${bar.catAvg ? bar.catAvg.precio : '-'}</strong></span>
+                    <span>Parcabilidad: <strong>${(bar.catAvg && bar.catAvg.parcabilidad) ? bar.catAvg.parcabilidad : '-'}</strong></span>
                 </div>
 
                 ${individualVotesHTML}
@@ -354,20 +351,29 @@ function renderEvaluatedBarsHistory() {
     }).join('');
 }
 
-// 5. Eliminar Integrante
+// Borrar Bar
+window.deleteEvaluatedBar = function(index) {
+    const bar = evaluatedBars[index];
+    if (!bar) return;
+
+    if (confirm(`⚠️ ¿Deseas borrar permanentemente la evaluación del bar "${bar.barName}" de la base de datos?`)) {
+        evaluatedBars.splice(index, 1);
+        saveDataToCloud();
+    }
+};
+
+// Eliminar Integrante
 window.deletePlayer = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
 
-    const confirmed = confirm(`⚠️ ¿Estás seguro de que deseas eliminar a "${player.name} (${player.nickname})" de la nube?`);
-    
-    if (confirmed) {
+    if (confirm(`⚠️ ¿Estás seguro de que deseas eliminar a "${player.name}"?`)) {
         players = players.filter(p => p.id !== id);
         saveDataToCloud();
     }
 };
 
-// 6. Modal de Edición
+// Modal Edición
 window.openEditModal = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
@@ -376,19 +382,20 @@ window.openEditModal = function(id) {
     document.getElementById('edit-name').value = player.name;
     document.getElementById('edit-nickname').value = player.nickname;
     document.getElementById('edit-beer').value = player.beer;
-    document.getElementById('edit-avatar-url').value = '';
-    document.getElementById('edit-avatar-file').value = '';
 
-    document.getElementById('edit-modal').classList.add('active');
+    const modal = document.getElementById('edit-modal');
+    if (modal) modal.classList.add('active');
 };
 
 window.closeEditModal = function() {
-    document.getElementById('edit-modal').classList.remove('active');
+    const modal = document.getElementById('edit-modal');
+    if (modal) modal.classList.remove('active');
 };
 
-// 7. Historial VAR
+// Historial VAR
 function renderHistory() {
     const historyContainer = document.getElementById('history-list');
+    if (!historyContainer) return;
 
     if (historyLog.length === 0) {
         historyContainer.innerHTML = '<p style="text-align:center; color:var(--text-secondary);">No hay registros en la bitácora todavía.</p>';
@@ -417,7 +424,6 @@ function renderHistory() {
     }).join('');
 }
 
-// Compresor de fotos
 function compressImage(file, callback) {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -451,9 +457,7 @@ function compressImage(file, callback) {
     reader.readAsDataURL(file);
 }
 
-// ==========================================================================
-// FORMULARIOS Y EVENTOS
-// ==========================================================================
+// Form Listeners
 function setupFormListeners() {
     const startSessionForm = document.getElementById('start-session-form');
     if (startSessionForm) {
@@ -474,7 +478,6 @@ function setupFormListeners() {
             };
 
             saveDataToCloud();
-            alert(`🍻 ¡Jornada abierta para "${barName}"! Los integrantes ya pueden votar.`);
         });
     }
 
@@ -494,14 +497,7 @@ function setupFormListeners() {
             const parcabilidad = parseFloat(document.getElementById('rate-parcabilidad').value);
 
             const rating = {
-                evaluatorName,
-                originalidad,
-                formato,
-                gelibilidad,
-                idiosincrasia,
-                papeo,
-                precio,
-                parcabilidad
+                evaluatorName, originalidad, formato, gelibilidad, idiosincrasia, papeo, precio, parcabilidad
             };
 
             if (!currentBarSession.ratings) currentBarSession.ratings = [];
@@ -520,11 +516,10 @@ function setupFormListeners() {
             const ratings = currentBarSession.ratings || [];
 
             if (ratings.length === 0) {
-                alert("⚠️ Debe haber al menos un formulario de valoración enviado para poder cerrar la jornada.");
+                alert("⚠️ Debe haber al menos una valoración enviada para cerrar la jornada.");
                 return;
             }
 
-            // Media de las 7 categorías por formulario
             const formAverages = ratings.map(r => 
                 (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
             );
@@ -572,7 +567,6 @@ function setupFormListeners() {
             });
 
             currentBarSession = { active: false };
-
             saveDataToCloud();
             alert(`🎉 ¡Jornada cerrada! Se le han sumado +${roundedScore} puntos a ${promoter ? promoter.name : 'Promotor'}.`);
         });
@@ -582,7 +576,6 @@ function setupFormListeners() {
     if (pointsForm) {
         pointsForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
             const playerId = parseInt(document.getElementById('select-player').value);
             if (!playerId) return;
 
@@ -623,35 +616,25 @@ function setupFormListeners() {
     if (registerForm) {
         registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
             const name = document.getElementById('new-name').value.trim();
             const nickname = document.getElementById('new-nickname').value.trim();
             const beer = document.getElementById('new-beer').value.trim();
-            
             const avatarFile = document.getElementById('new-avatar-file').files[0];
             const avatarUrl = document.getElementById('new-avatar-url').value.trim();
 
             const createPlayer = (photoSrc) => {
-                const newPlayer = {
+                players.push({
                     id: Date.now(),
-                    name,
-                    nickname,
-                    points: 0,
-                    moves: 0,
-                    beer,
+                    name, nickname, points: 0, moves: 0, beer,
                     avatar: photoSrc || DEFAULT_AVATAR
-                };
-
-                players.push(newPlayer);
+                });
                 saveDataToCloud();
                 registerForm.reset();
                 alert(`🎉 ¡Bienvenido/a a la Liga, ${name}!`);
             };
 
             if (avatarFile) {
-                compressImage(avatarFile, (compressedBase64) => {
-                    createPlayer(compressedBase64);
-                });
+                compressImage(avatarFile, (compressed) => createPlayer(compressed));
             } else if (avatarUrl !== '') {
                 createPlayer(avatarUrl);
             } else {
@@ -664,44 +647,26 @@ function setupFormListeners() {
     if (editForm) {
         editForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
             const id = parseInt(document.getElementById('edit-player-id').value);
             const player = players.find(p => p.id === id);
             if (!player) return;
 
-            const oldName = player.name;
-            const newName = document.getElementById('edit-name').value.trim();
-            const newNickname = document.getElementById('edit-nickname').value.trim();
-            const newBeer = document.getElementById('edit-beer').value.trim();
-            
+            player.name = document.getElementById('edit-name').value.trim();
+            player.nickname = document.getElementById('edit-nickname').value.trim();
+            player.beer = document.getElementById('edit-beer').value.trim();
+
             const avatarFile = document.getElementById('edit-avatar-file').files[0];
             const avatarUrl = document.getElementById('edit-avatar-url').value.trim();
 
             const updatePlayer = (photoSrc) => {
-                player.name = newName;
-                player.nickname = newNickname;
-                player.beer = newBeer;
-                if (photoSrc) {
-                    player.avatar = photoSrc;
-                }
-
-                if (oldName !== newName) {
-                    historyLog.forEach(item => {
-                        if (item.playerId === player.id) {
-                            item.playerName = newName;
-                        }
-                    });
-                }
-
+                if (photoSrc) player.avatar = photoSrc;
                 saveDataToCloud();
                 closeEditModal();
                 alert(`✏️ ¡Perfil actualizado!`);
             };
 
             if (avatarFile) {
-                compressImage(avatarFile, (compressedBase64) => {
-                    updatePlayer(compressedBase64);
-                });
+                compressImage(avatarFile, (compressed) => updatePlayer(compressed));
             } else if (avatarUrl !== '') {
                 updatePlayer(avatarUrl);
             } else {
