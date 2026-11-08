@@ -15,7 +15,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const dbRef = db.ref('liga-cervezas');
-
 // ==========================================================================
 // ESTADO LOCAL Y DATOS
 // ==========================================================================
@@ -26,7 +25,7 @@ let historyLog = [];
 let currentBarSession = null;
 let evaluatedBars = [];
 
-// Escuchar cambios de la nube en TIEMPO REAL con protección ante datos nulos
+// Escuchar cambios en la nube (con purga estricta de elementos null)
 dbRef.on('value', (snapshot) => {
     const data = snapshot.val() || {};
     
@@ -36,13 +35,19 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    // Carga segura de datos
-    players = Array.isArray(data.players) ? data.players : [];
-    historyLog = Array.isArray(data.historyLog) ? data.historyLog : [];
-    evaluatedBars = Array.isArray(data.evaluatedBars) ? data.evaluatedBars : [];
-    currentBarSession = data.currentBarSession || null;
+    // Filtrar cualquier hueco "null" o no válido dejado por borrados manuales en Firebase
+    const rawPlayers = Array.isArray(data.players) ? data.players : (typeof data.players === 'object' ? Object.values(data.players) : []);
+    players = rawPlayers.filter(p => p && typeof p === 'object' && p.id);
 
-    // Respaldo local
+    const rawHistory = Array.isArray(data.historyLog) ? data.historyLog : (typeof data.historyLog === 'object' ? Object.values(data.historyLog) : []);
+    historyLog = rawHistory.filter(h => h && typeof h === 'object');
+
+    const rawBars = Array.isArray(data.evaluatedBars) ? data.evaluatedBars : (typeof data.evaluatedBars === 'object' ? Object.values(data.evaluatedBars) : []);
+    evaluatedBars = rawBars.filter(b => b && typeof b === 'object');
+
+    currentBarSession = (data.currentBarSession && typeof data.currentBarSession === 'object') ? data.currentBarSession : null;
+
+    // Guardar respaldo limpio en localStorage
     localStorage.setItem('beer_league_players', JSON.stringify(players));
     localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
 
@@ -67,7 +72,7 @@ function saveDataToCloud() {
 }
 
 // ==========================================================================
-// CONTROL DE NAVEGACIÓN Y MENÚ DESPLEGABLE MÓVIL
+// NAVEGACIÓN Y MENÚ HAMBURGUESA
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
@@ -81,13 +86,11 @@ function initNavigation() {
     const mainNav = document.getElementById('main-nav');
     const menuIcon = document.getElementById('menu-icon');
 
-    // Alternar menú hamburguesa en dispositivos móviles
     if (menuToggle && mainNav) {
         menuToggle.addEventListener('click', () => {
             mainNav.classList.toggle('open');
-            const isOpen = mainNav.classList.contains('open');
             if (menuIcon) {
-                menuIcon.textContent = isOpen ? '✕' : '☰';
+                menuIcon.textContent = mainNav.classList.contains('open') ? '✕' : '☰';
             }
         });
     }
@@ -106,7 +109,6 @@ function initNavigation() {
                 }
             });
 
-            // Cerrar menú desplegable al hacer clic en una pestaña en versión móvil
             if (mainNav && mainNav.classList.contains('open')) {
                 mainNav.classList.remove('open');
                 if (menuIcon) menuIcon.textContent = '☰';
@@ -132,7 +134,7 @@ function renderPodium() {
     const podiumContainer = document.getElementById('podium-container');
     if (!podiumContainer) return;
 
-    const sorted = [...players].sort((a, b) => b.points - a.points);
+    const sorted = [...players].sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0));
 
     if (sorted.length < 1) {
         podiumContainer.innerHTML = '<p style="color:var(--text-secondary)">No hay integrantes registrados.</p>';
@@ -146,26 +148,26 @@ function renderPodium() {
     podiumContainer.innerHTML = `
         <div class="podium-item second">
             <div class="podium-avatar">
-                <img src="${top2.avatar}" alt="${top2.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
+                <img src="${top2.avatar || DEFAULT_AVATAR}" alt="${top2.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top2.name}</h4>
-            <p>${Number(top2.points).toFixed(2)} pts</p>
+            <p>${Number(top2.points || 0).toFixed(2)} pts</p>
             <span class="podium-badge">🥈 2º Lugar</span>
         </div>
         <div class="podium-item first">
             <div class="podium-avatar">
-                <img src="${top1.avatar}" alt="${top1.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
+                <img src="${top1.avatar || DEFAULT_AVATAR}" alt="${top1.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top1.name}</h4>
-            <p>${Number(top1.points).toFixed(2)} pts</p>
+            <p>${Number(top1.points || 0).toFixed(2)} pts</p>
             <span class="podium-badge">🏆 1º Líder</span>
         </div>
         <div class="podium-item third">
             <div class="podium-avatar">
-                <img src="${top3.avatar}" alt="${top3.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
+                <img src="${top3.avatar || DEFAULT_AVATAR}" alt="${top3.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${top3.name}</h4>
-            <p>${Number(top3.points).toFixed(2)} pts</p>
+            <p>${Number(top3.points || 0).toFixed(2)} pts</p>
             <span class="podium-badge">🥉 3º Lugar</span>
         </div>
     `;
@@ -176,7 +178,7 @@ function renderLeaderboard() {
     const tbody = document.getElementById('leaderboard-body');
     if (!tbody) return;
 
-    const sorted = [...players].sort((a, b) => b.points - a.points);
+    const sorted = [...players].sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0));
 
     if (sorted.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">No hay integrantes en la liga.</td></tr>`;
@@ -188,16 +190,16 @@ function renderLeaderboard() {
             <td><strong>#${index + 1}</strong></td>
             <td>
                 <div class="player-info-cell">
-                    <img src="${p.avatar}" alt="${p.name}" class="table-avatar" onerror="this.src='${DEFAULT_AVATAR}'">
+                    <img src="${p.avatar || DEFAULT_AVATAR}" alt="${p.name}" class="table-avatar" onerror="this.src='${DEFAULT_AVATAR}'">
                     <div>
                         <strong>${p.name}</strong> 
-                        <small style="color:var(--text-secondary); display:block;">("${p.nickname}")</small>
+                        <small style="color:var(--text-secondary); display:block;">("${p.nickname || ''}")</small>
                     </div>
                 </div>
             </td>
-            <td>🍺 ${p.beer}</td>
-            <td>${p.moves} acciones</td>
-            <td><strong style="color:var(--accent-gold); font-size:1.1rem;">${Number(p.points).toFixed(2)} pts</strong></td>
+            <td>🍺 ${p.beer || 'Cerveza'}</td>
+            <td>${p.moves || 0} acciones</td>
+            <td><strong style="color:var(--accent-gold); font-size:1.1rem;">${Number(p.points || 0).toFixed(2)} pts</strong></td>
         </tr>
     `).join('');
 }
@@ -215,14 +217,14 @@ function renderPlayerSelect() {
         return;
     }
 
-    const sortedByName = [...players].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedByName = [...players].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const optionsHTML = sortedByName.map(p => `
-        <option value="${p.id}">${p.name} "${p.nickname}" (${Number(p.points).toFixed(2)} pts)</option>
+        <option value="${p.id}">${p.name} "${p.nickname || ''}" (${Number(p.points || 0).toFixed(2)} pts)</option>
     `).join('');
 
     const evaluatorOptionsHTML = sortedByName.map(p => `
-        <option value="${p.name}">${p.name} "${p.nickname}"</option>
+        <option value="${p.name}">${p.name} "${p.nickname || ''}"</option>
     `).join('');
 
     if (select) select.innerHTML = optionsHTML;
@@ -247,18 +249,18 @@ function renderPlayerCards() {
                 <button class="action-btn delete-player-btn" onclick="deletePlayer(${p.id})" title="Eliminar integrante">🗑️</button>
             </div>
             <div class="player-avatar-box">
-                <img src="${p.avatar}" alt="${p.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
+                <img src="${p.avatar || DEFAULT_AVATAR}" alt="${p.name}" class="avatar-img" onerror="this.src='${DEFAULT_AVATAR}'">
             </div>
             <h4>${p.name}</h4>
-            <div class="player-nickname">"${p.nickname}"</div>
-            <div class="player-score">${Number(p.points).toFixed(2)} <span style="font-size:1rem">PTS</span></div>
-            <div class="player-beer">Fav: <strong>${p.beer}</strong></div>
+            <div class="player-nickname">"${p.nickname || ''}"</div>
+            <div class="player-score">${Number(p.points || 0).toFixed(2)} <span style="font-size:1rem">PTS</span></div>
+            <div class="player-beer">Fav: <strong>${p.beer || 'Cerveza'}</strong></div>
         </div>
     `).join('');
 }
 
 // ==========================================================================
-// SECCIÓN DE VALORACIÓN DE BAR DEL JUEVES
+// VALORACIÓN DE BAR
 // ==========================================================================
 function renderBarEvaluationSection() {
     const setupCard = document.getElementById('session-setup-card');
@@ -266,16 +268,18 @@ function renderBarEvaluationSection() {
 
     if (!setupCard || !activePanel) return;
 
-    if (currentBarSession && currentBarSession.active) {
+    const isSessionActive = currentBarSession && typeof currentBarSession === 'object' && currentBarSession.active === true;
+
+    if (isSessionActive) {
         setupCard.style.display = 'none';
         activePanel.style.display = 'block';
 
         const barTitle = document.getElementById('active-bar-title');
         const promoterName = document.getElementById('active-promoter-name');
-        if (barTitle) barTitle.textContent = currentBarSession.barName;
-        if (promoterName) promoterName.textContent = `Promotor: ${currentBarSession.promoterName}`;
+        if (barTitle) barTitle.textContent = currentBarSession.barName || 'Bar en Evaluación';
+        if (promoterName) promoterName.textContent = `Promotor: ${currentBarSession.promoterName || 'Desconocido'}`;
 
-        const ratings = currentBarSession.ratings || [];
+        const ratings = (Array.isArray(currentBarSession.ratings) ? currentBarSession.ratings : []).filter(Boolean);
         const votesCount = document.getElementById('votes-count');
         if (votesCount) votesCount.textContent = `${ratings.length} formulario(s) enviado(s)`;
 
@@ -283,7 +287,9 @@ function renderBarEvaluationSection() {
         if (liveAverage) {
             if (ratings.length > 0) {
                 const formAverages = ratings.map(r => 
-                    (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
+                    ((Number(r.originalidad)||0) + (Number(r.formato)||0) + (Number(r.gelibilidad)||0) + 
+                     (Number(r.idiosincrasia)||0) + (Number(r.papeo)||0) + (Number(r.precio)||0) + 
+                     (r.parcabilidad !== undefined ? Number(r.parcabilidad) : 7)) / 7
                 );
                 const totalAvg = formAverages.reduce((acc, val) => acc + val, 0) / formAverages.length;
                 liveAverage.textContent = totalAvg.toFixed(2);
@@ -291,6 +297,8 @@ function renderBarEvaluationSection() {
                 liveAverage.textContent = '0.00';
             }
         }
+
+        renderActiveVotesList(ratings);
 
     } else {
         setupCard.style.display = 'block';
@@ -300,7 +308,58 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
-// Histórico de Bares Evaluados
+function renderActiveVotesList(ratings) {
+    const container = document.getElementById('active-votes-container');
+    const list = document.getElementById('active-votes-list');
+
+    if (!container || !list) return;
+
+    if (!ratings || ratings.length === 0) {
+        container.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = ratings.map((r, index) => {
+        const parcVal = r.parcabilidad !== undefined ? Number(r.parcabilidad) : 7;
+        const userAvg = (((Number(r.originalidad)||0) + (Number(r.formato)||0) + (Number(r.gelibilidad)||0) + 
+                          (Number(r.idiosincrasia)||0) + (Number(r.papeo)||0) + (Number(r.precio)||0) + parcVal) / 7).toFixed(1);
+
+        return `
+            <div class="user-vote-card">
+                <div class="user-vote-header">
+                    <strong>👤 ${r.evaluatorName || 'Integrante'}</strong>
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <span class="user-avg-badge">${userAvg} / 10</span>
+                        <button class="action-btn delete-player-btn" onclick="deleteActiveVote(${index})" title="Eliminar voto">🗑️</button>
+                    </div>
+                </div>
+                <div class="user-vote-details">
+                    <span>Orig: <strong>${r.originalidad}</strong></span>
+                    <span>Form: <strong>${r.formato}</strong></span>
+                    <span>Geli: <strong>${r.gelibilidad}</strong></span>
+                    <span>Idio: <strong>${r.idiosincrasia}</strong></span>
+                    <span>Papeo: <strong>${r.papeo}</strong></span>
+                    <span>Prec: <strong>${r.precio}</strong></span>
+                    <span>Parc: <strong>${r.parcabilidad !== undefined ? r.parcabilidad : '-'}</strong></span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.deleteActiveVote = function(index) {
+    if (!currentBarSession || !Array.isArray(currentBarSession.ratings)) return;
+    const vote = currentBarSession.ratings[index];
+    if (!vote) return;
+
+    if (confirm(`⚠️ ¿Deseas eliminar la valoración enviada por "${vote.evaluatorName || 'este integrante'}"?`)) {
+        currentBarSession.ratings.splice(index, 1);
+        saveDataToCloud();
+    }
+};
+
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
     if (!listContainer) return;
@@ -313,17 +372,19 @@ function renderEvaluatedBarsHistory() {
     const reversedWithIndices = evaluatedBars.map((bar, index) => ({ bar, index })).reverse();
 
     listContainer.innerHTML = reversedWithIndices.map(({ bar, index }) => {
-        const individualVotesHTML = (bar.ratings && bar.ratings.length > 0)
+        const ratings = Array.isArray(bar.ratings) ? bar.ratings.filter(Boolean) : [];
+        const individualVotesHTML = (ratings.length > 0)
             ? `<details class="individual-votes-accordion">
-                <summary>🔍 Ver votaciones individuales (${bar.ratings.length} integrantes)</summary>
+                <summary>🔍 Ver votaciones individuales (${ratings.length} integrantes)</summary>
                 <div class="individual-votes-list">
-                    ${bar.ratings.map(r => {
-                        const parcVal = r.parcabilidad !== undefined ? r.parcabilidad : 7;
-                        const userAvg = ((r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + parcVal) / 7).toFixed(1);
+                    ${ratings.map(r => {
+                        const parcVal = r.parcabilidad !== undefined ? Number(r.parcabilidad) : 7;
+                        const userAvg = (((Number(r.originalidad)||0) + (Number(r.formato)||0) + (Number(r.gelibilidad)||0) + 
+                                          (Number(r.idiosincrasia)||0) + (Number(r.papeo)||0) + (Number(r.precio)||0) + parcVal) / 7).toFixed(1);
                         return `
                             <div class="user-vote-card">
                                 <div class="user-vote-header">
-                                    <strong>👤 ${r.evaluatorName}</strong>
+                                    <strong>👤 ${r.evaluatorName || 'Integrante'}</strong>
                                     <span class="user-avg-badge">${userAvg} / 10</span>
                                 </div>
                                 <div class="user-vote-details">
@@ -346,12 +407,12 @@ function renderEvaluatedBarsHistory() {
             <div class="bar-history-card">
                 <div class="bar-history-header">
                     <div>
-                        <h4>🍻 ${bar.barName}</h4>
-                        <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName}</strong> | 📅 ${bar.date}</small>
+                        <h4>🍻 ${bar.barName || 'Bar'}</h4>
+                        <small style="color:var(--text-secondary)">Promotor: <strong>${bar.promoterName || '-'}</strong> | 📅 ${bar.date || ''}</small>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.8rem;">
-                        <div class="bar-score-badge">+${Number(bar.finalScore).toFixed(2)} pts</div>
-                        <button class="action-btn delete-player-btn" onclick="deleteEvaluatedBar(${index})" title="Eliminar este bar del registro">🗑️</button>
+                        <div class="bar-score-badge">+${Number(bar.finalScore || 0).toFixed(2)} pts</div>
+                        <button class="action-btn delete-player-btn" onclick="deleteEvaluatedBar(${index})" title="Eliminar del registro">🗑️</button>
                     </div>
                 </div>
                 
@@ -371,18 +432,16 @@ function renderEvaluatedBarsHistory() {
     }).join('');
 }
 
-// Borrar Bar
 window.deleteEvaluatedBar = function(index) {
     const bar = evaluatedBars[index];
     if (!bar) return;
 
-    if (confirm(`⚠️ ¿Deseas borrar permanentemente la evaluación del bar "${bar.barName}" de la base de datos?`)) {
+    if (confirm(`⚠️ ¿Deseas borrar permanentemente la evaluación del bar "${bar.barName}"?`)) {
         evaluatedBars.splice(index, 1);
         saveDataToCloud();
     }
 };
 
-// Eliminar Integrante
 window.deletePlayer = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
@@ -393,15 +452,14 @@ window.deletePlayer = function(id) {
     }
 };
 
-// Modal Edición
 window.openEditModal = function(id) {
     const player = players.find(p => p.id === id);
     if (!player) return;
 
     document.getElementById('edit-player-id').value = player.id;
     document.getElementById('edit-name').value = player.name;
-    document.getElementById('edit-nickname').value = player.nickname;
-    document.getElementById('edit-beer').value = player.beer;
+    document.getElementById('edit-nickname').value = player.nickname || '';
+    document.getElementById('edit-beer').value = player.beer || '';
 
     const modal = document.getElementById('edit-modal');
     if (modal) modal.classList.add('active');
@@ -412,7 +470,6 @@ window.closeEditModal = function() {
     if (modal) modal.classList.remove('active');
 };
 
-// Historial VAR
 function renderHistory() {
     const historyContainer = document.getElementById('history-list');
     if (!historyContainer) return;
@@ -432,12 +489,12 @@ function renderHistory() {
         return `
             <div class="history-item ${cssClass}">
                 <div class="history-details">
-                    <h5>👤 ${item.playerName}</h5>
-                    <p class="history-reason">💬 "${item.reason}"</p>
+                    <h5>👤 ${item.playerName || 'Integrante'}</h5>
+                    <p class="history-reason">💬 "${item.reason || ''}"</p>
                 </div>
                 <div class="history-meta">
-                    <span class="history-badge ${cssClass}">${sign}${Number(item.points).toFixed(2)} PTS</span>
-                    <span class="history-date">📅 ${item.date}</span>
+                    <span class="history-badge ${cssClass}">${sign}${Number(item.points || 0).toFixed(2)} PTS</span>
+                    <span class="history-date">📅 ${item.date || ''}</span>
                 </div>
             </div>
         `;
@@ -477,7 +534,9 @@ function compressImage(file, callback) {
     reader.readAsDataURL(file);
 }
 
-// Form Listeners
+// ==========================================================================
+// FORMULARIOS
+// ==========================================================================
 function setupFormListeners() {
     const startSessionForm = document.getElementById('start-session-form');
     if (startSessionForm) {
@@ -509,25 +568,24 @@ function setupFormListeners() {
 
             const evaluatorName = document.getElementById('evaluator-name').value;
 
-            // Lógica transparente para convertir comas (,) en puntos decimales (.)
             const parseVal = (id) => {
-                const raw = document.getElementById(id).value;
-                return parseFloat(String(raw).replace(',', '.')) || 0;
+                const el = document.getElementById(id);
+                if (!el) return 0;
+                return parseFloat(String(el.value).replace(',', '.')) || 0;
             };
-
-            const originalidad = parseVal('rate-originalidad');
-            const formato = parseVal('rate-formato');
-            const gelibilidad = parseVal('rate-gelibilidad');
-            const idiosincrasia = parseVal('rate-idiosincrasia');
-            const papeo = parseVal('rate-papeo');
-            const precio = parseVal('rate-precio');
-            const parcabilidad = parseVal('rate-parcabilidad');
 
             const rating = {
-                evaluatorName, originalidad, formato, gelibilidad, idiosincrasia, papeo, precio, parcabilidad
+                evaluatorName,
+                originalidad: parseVal('rate-originalidad'),
+                formato: parseVal('rate-formato'),
+                gelibilidad: parseVal('rate-gelibilidad'),
+                idiosincrasia: parseVal('rate-idiosincrasia'),
+                papeo: parseVal('rate-papeo'),
+                precio: parseVal('rate-precio'),
+                parcabilidad: parseVal('rate-parcabilidad')
             };
 
-            if (!currentBarSession.ratings) currentBarSession.ratings = [];
+            if (!Array.isArray(currentBarSession.ratings)) currentBarSession.ratings = [];
             currentBarSession.ratings.push(rating);
 
             saveDataToCloud();
@@ -540,7 +598,7 @@ function setupFormListeners() {
     if (closeSessionBtn) {
         closeSessionBtn.addEventListener('click', () => {
             if (!currentBarSession || !currentBarSession.active) return;
-            const ratings = currentBarSession.ratings || [];
+            const ratings = (Array.isArray(currentBarSession.ratings) ? currentBarSession.ratings : []).filter(Boolean);
 
             if (ratings.length === 0) {
                 alert("⚠️ Debe haber al menos una valoración enviada para cerrar la jornada.");
@@ -548,20 +606,22 @@ function setupFormListeners() {
             }
 
             const formAverages = ratings.map(r => 
-                (r.originalidad + r.formato + r.gelibilidad + r.idiosincrasia + r.papeo + r.precio + (r.parcabilidad !== undefined ? r.parcabilidad : 7)) / 7
+                ((Number(r.originalidad)||0) + (Number(r.formato)||0) + (Number(r.gelibilidad)||0) + 
+                 (Number(r.idiosincrasia)||0) + (Number(r.papeo)||0) + (Number(r.precio)||0) + 
+                 (r.parcabilidad !== undefined ? Number(r.parcabilidad) : 7)) / 7
             );
 
             const finalScore = formAverages.reduce((acc, v) => acc + v, 0) / formAverages.length;
             const roundedScore = parseFloat(finalScore.toFixed(2));
 
             const catAvg = {
-                originalidad: (ratings.reduce((acc, r) => acc + r.originalidad, 0) / ratings.length).toFixed(1),
-                formato: (ratings.reduce((acc, r) => acc + r.formato, 0) / ratings.length).toFixed(1),
-                gelibilidad: (ratings.reduce((acc, r) => acc + r.gelibilidad, 0) / ratings.length).toFixed(1),
-                idiosincrasia: (ratings.reduce((acc, r) => acc + r.idiosincrasia, 0) / ratings.length).toFixed(1),
-                papeo: (ratings.reduce((acc, r) => acc + r.papeo, 0) / ratings.length).toFixed(1),
-                precio: (ratings.reduce((acc, r) => acc + r.precio, 0) / ratings.length).toFixed(1),
-                parcabilidad: (ratings.reduce((acc, r) => acc + (r.parcabilidad !== undefined ? r.parcabilidad : 7), 0) / ratings.length).toFixed(1)
+                originalidad: (ratings.reduce((acc, r) => acc + (Number(r.originalidad)||0), 0) / ratings.length).toFixed(1),
+                formato: (ratings.reduce((acc, r) => acc + (Number(r.formato)||0), 0) / ratings.length).toFixed(1),
+                gelibilidad: (ratings.reduce((acc, r) => acc + (Number(r.gelibilidad)||0), 0) / ratings.length).toFixed(1),
+                idiosincrasia: (ratings.reduce((acc, r) => acc + (Number(r.idiosincrasia)||0), 0) / ratings.length).toFixed(1),
+                papeo: (ratings.reduce((acc, r) => acc + (Number(r.papeo)||0), 0) / ratings.length).toFixed(1),
+                precio: (ratings.reduce((acc, r) => acc + (Number(r.precio)||0), 0) / ratings.length).toFixed(1),
+                parcabilidad: (ratings.reduce((acc, r) => acc + (r.parcabilidad !== undefined ? Number(r.parcabilidad) : 7), 0) / ratings.length).toFixed(1)
             };
 
             const promoter = players.find(p => p.id === currentBarSession.promoterId);
