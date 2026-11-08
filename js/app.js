@@ -1,5 +1,5 @@
 // ==========================================================================
-// CONFIGURACIÓN DE FIREBASE (PEGA AQUÍ TUS CLAVES REALES DE FIREBASE)
+// CONFIGURACIÓN DE FIREBASE (ASEGÚRATE DE USAR TUS CLAVES REALES AQUÍ)
 // ==========================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyBmYSgUb3eWOFBw1rvbJKMG210Oy3RtEH8",
@@ -15,6 +15,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const dbRef = db.ref('liga-cervezas');
+
 // ==========================================================================
 // ESTADO LOCAL Y DATOS
 // ==========================================================================
@@ -25,7 +26,7 @@ let historyLog = [];
 let currentBarSession = null;
 let evaluatedBars = [];
 
-// Escuchar cambios en la nube (con purga estricta de elementos null)
+// Sincronización en tiempo real con sanitizado absoluto contra valores nulos/corruptos
 dbRef.on('value', (snapshot) => {
     const data = snapshot.val() || {};
     
@@ -35,7 +36,7 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    // Filtrar cualquier hueco "null" o no válido dejado por borrados manuales en Firebase
+    // Filtrar cualquier elemento nulo o mal formado dejado por ediciones manuales en Firebase
     const rawPlayers = Array.isArray(data.players) ? data.players : (typeof data.players === 'object' ? Object.values(data.players) : []);
     players = rawPlayers.filter(p => p && typeof p === 'object' && p.id);
 
@@ -47,7 +48,7 @@ dbRef.on('value', (snapshot) => {
 
     currentBarSession = (data.currentBarSession && typeof data.currentBarSession === 'object') ? data.currentBarSession : null;
 
-    // Guardar respaldo limpio en localStorage
+    // Respaldo en localStorage
     localStorage.setItem('beer_league_players', JSON.stringify(players));
     localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
 
@@ -72,7 +73,7 @@ function saveDataToCloud() {
 }
 
 // ==========================================================================
-// NAVEGACIÓN Y MENÚ HAMBURGUESA
+// CONTROL DE NAVEGACIÓN Y MENÚ HAMBURGUESA
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
@@ -260,7 +261,7 @@ function renderPlayerCards() {
 }
 
 // ==========================================================================
-// VALORACIÓN DE BAR
+// SECCIÓN DE VALORACIÓN DE BAR DEL JUEVES
 // ==========================================================================
 function renderBarEvaluationSection() {
     const setupCard = document.getElementById('session-setup-card');
@@ -308,6 +309,7 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
+// Renderizado de lista de votos en la jornada activa
 function renderActiveVotesList(ratings) {
     const container = document.getElementById('active-votes-container');
     const list = document.getElementById('active-votes-list');
@@ -349,6 +351,7 @@ function renderActiveVotesList(ratings) {
     }).join('');
 }
 
+// Borrado de voto en jornada activa
 window.deleteActiveVote = function(index) {
     if (!currentBarSession || !Array.isArray(currentBarSession.ratings)) return;
     const vote = currentBarSession.ratings[index];
@@ -360,6 +363,7 @@ window.deleteActiveVote = function(index) {
     }
 };
 
+// Histórico de Bares Evaluados
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
     if (!listContainer) return;
@@ -535,7 +539,7 @@ function compressImage(file, callback) {
 }
 
 // ==========================================================================
-// FORMULARIOS
+// LISTENERS DE FORMULARIOS
 // ==========================================================================
 function setupFormListeners() {
     const startSessionForm = document.getElementById('start-session-form');
@@ -568,6 +572,7 @@ function setupFormListeners() {
 
             const evaluatorName = document.getElementById('evaluator-name').value;
 
+            // Soporte transparente para comas y puntos decimales
             const parseVal = (id) => {
                 const el = document.getElementById(id);
                 if (!el) return 0;
