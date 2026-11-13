@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liga Oficial de Cervezas 🍺</title>
+    <title>Liga TribunBirrato 🍺</title>
     <!-- Fuentes estilo deportivo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +13,34 @@
     <!-- Librerías Firebase (Compat v10) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <!-- Estilos internos para el logo -->
+    <style>
+        .logo-shield-container {
+            width: 70px; /* Un poco más grande para el escudo detallado */
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+        .logo-img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            border: 2px solid var(--accent-gold); /* Mantenemos el borde dorado alrededor del escudo */
+            border-radius: 8px; /* Un borde ligeramente redondeado para un aspecto de placa */
+            background-color: var(--bg-main); /* Fondo para la imagen, en caso de que el PNG no tenga transparencia perfecta */
+            padding: 2px; /* Espacio para el borde */
+        }
+        
+        /* Ajuste para el logo en móviles */
+        @media (max-width: 768px) {
+            .logo-shield-container {
+                width: 55px;
+                height: 55px;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -20,10 +48,14 @@
     <header class="main-header">
         <div class="header-container">
             <div class="brand">
-                <div class="logo-shield">🍺</div>
+                <!-- CONTENEDOR DEL NUEVO LOGO -->
+                <div class="logo-shield-container">
+                    <!-- Asegúrate de tener el archivo de imagen 'logo_escudo.png' en la misma carpeta -->
+                    <img src="logo_escudo.jpg" alt="Logo Liga TribunBirrato" class="logo-img">
+                </div>
                 <div class="brand-text">
-                    <span class="league-tag">LIGA OFICIAL 2024/2025</span>
-                    <h1>BEER LEAGUE ATHLETIC</h1>
+                    <span class="league-tag">COMPETICIÓN OFICIAL</span>
+                    <h1>LIGA TRIBUNBIRRATO</h1>
                 </div>
             </div>
 
@@ -39,13 +71,14 @@
                 <button class="nav-btn" data-tab="evaluar-bar">📝 Valoración de Bar</button>
                 <button class="nav-btn" data-tab="gestion-puntos">⚡ Gestor de Puntos</button>
                 <button class="nav-btn" data-tab="integrantes">👥 Integrantes</button>
+                <button class="nav-btn" data-tab="historico-vueltas">🔄 Histórico de Vueltas</button>
                 <button class="nav-btn" data-tab="historial">📜 Bitácora VAR</button>
             </nav>
         </div>
     </header>
 
     <!-- INDICADOR DE CONEXIÓN EN TIEMPO REAL -->
-    <div id="sync-status" class="sync-status">📡 Conectando con la liga en la nube...</div>
+    <div id="sync-status" class="sync-status">📡 Conectando con la Liga TribunBirrato en la nube...</div>
 
     <!-- CONTENEDOR PRINCIPAL -->
     <main class="main-content">
@@ -54,13 +87,13 @@
         <section id="inicio" class="tab-content active">
             <div class="hero-banner">
                 <div class="hero-overlay">
-                    <h2>BIENVENIDO A LA LIGA DE CERVEZAS</h2>
+                    <h2>BIENVENIDO A LA LIGA TRIBUNBIRRATO</h2>
                     <p>Donde cada caña suma, cada ronda cuenta y los vacíos se resuelven en el TriunBirrato.</p>
                 </div>
             </div>
 
             <div class="section-title">
-                <h3>📜 Reglamento Oficial de la Liga</h3>
+                <h3>📜 Reglamento Oficial de la Liga TribunBirrato</h3>
                 <span class="subtitle">Estatutos de la competición y sistema de evaluación</span>
             </div>
 
@@ -146,7 +179,7 @@
         <section id="clasificacion" class="tab-content">
             <div class="section-title">
                 <h3>🏆 Tabla de Posiciones General</h3>
-                <span class="subtitle">Temporada en curso (Sincronizada en vivo)</span>
+                <span class="subtitle">Vuelta en curso (Sincronizada en vivo)</span>
             </div>
 
             <!-- PODIO TOP 3 -->
@@ -216,7 +249,7 @@
                     </div>
                 </div>
 
-                <!-- LISTA DE VOTOS RECIBIDOS EN LA SESIÓN ACTIVA (CON BORRADO INDIVIDUAL) -->
+                <!-- LISTA DE VOTOS RECIBIDOS EN LA SESIÓN ACTIVA -->
                 <div id="active-votes-container" class="form-card my-2" style="display:none;">
                     <h4>📋 Valoraciones Recibidas en esta Sesión</h4>
                     <div id="active-votes-list" class="individual-votes-list mt-1"></div>
@@ -285,10 +318,10 @@
                 </div>
             </div>
 
-            <!-- HISTÓRICO DE BARES EVALUADOS -->
+            <!-- HISTÓRICO DE BARES EVALUADOS EN LA VUELTA ACTUAL -->
             <div class="section-title mt-2">
-                <h3>📜 Histórico de Bares Evaluados</h3>
-                <span class="subtitle">Ranking de tascas con desglose de votantes</span>
+                <h3>📜 Bares Evaluados en la Vuelta Actual</h3>
+                <span class="subtitle">Ranking de tascas de esta vuelta con desglose de votantes</span>
             </div>
             <div id="evaluated-bars-list" class="bars-history-grid">
                 <!-- Se genera dinámicamente con JS -->
@@ -331,7 +364,7 @@
                         <textarea id="point-reason" rows="3" placeholder="Ej: Puntualidad a las 20:00h (+1.25) / Sanción por no pagar a tiempo (-2) / Hielos (+0.5)..." required></textarea>
                     </div>
 
-                    <button type="submit" class="btn-primary">✍️ Registrar Acción en la Nube</button>
+                    <button type="submit" class="btn-primary">✍️ Registrar Acción en la Nibe</button>
                 </form>
             </div>
         </section>
@@ -383,7 +416,66 @@
             </div>
         </section>
 
-        <!-- SECCIÓN 6: HISTORIAL / VAR -->
+        <!-- SECCIÓN 6: HISTÓRICO DE VUELTAS -->
+        <section id="historico-vueltas" class="tab-content">
+            <div class="section-title">
+                <h3>🔄 Histórico de Vueltas</h3>
+                <span class="subtitle">Cierre de rondas, clasificaciones históricas y bares recomendados</span>
+            </div>
+
+            <!-- PANEL PARA FINALIZAR LA VUELTA ACTUAL -->
+            <div class="form-card highlight-card mb-2">
+                <h4>🏁 Finalizar Vuelta Actual</h4>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                    Guarda la clasificación actual y todos los bares recomendados en esta vuelta. Al finalizar, los puntos de los jugadores y los bares activos se reiniciarán para comenzar la siguiente vuelta.
+                </p>
+
+                <div class="current-vuelta-summary">
+                    <div class="vuelta-stat-box">
+                        <span class="stat-label">Vuelta en curso</span>
+                        <strong id="current-vuelta-number">Vuelta 1</strong>
+                    </div>
+                    <div class="vuelta-stat-box">
+                        <span class="stat-label">Líder actual</span>
+                        <strong id="current-vuelta-leader">-</strong>
+                    </div>
+                    <div class="vuelta-stat-box">
+                        <span class="stat-label">Bares recomendados</span>
+                        <strong id="current-vuelta-bars-count">0 bares</strong>
+                    </div>
+                </div>
+
+                <form id="close-vuelta-form" class="mt-1">
+                    <div class="form-group">
+                        <label for="vuelta-custom-name">Nombre de la Vuelta (Opcional):</label>
+                        <input type="text" id="vuelta-custom-name" placeholder="Ej: Vuelta 1 - Temporada 2026 (si lo dejas vacío se nombrará automáticamente)">
+                    </div>
+
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="vuelta-reset-current" checked>
+                        <label for="vuelta-reset-current" style="margin:0; cursor:pointer; color:var(--text-primary);">
+                            Reiniciar puntos de jugadores a 0 y limpiar bares activos para iniciar la nueva vuelta
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-primary mt-1" style="background:#2ecc71; color:#000;">
+                        🏁 Finalizar Vuelta Actual y Guardar en el Histórico
+                    </button>
+                </form>
+            </div>
+
+            <!-- ARCHIVO DE VUELTAS FINALIZADAS -->
+            <div class="section-title mt-2">
+                <h3>🏆 Vueltas Finalizadas</h3>
+                <span class="subtitle">Consulta la tabla final y los bares recomendados en cada vuelta</span>
+            </div>
+
+            <div id="vueltas-history-list" class="vueltas-container">
+                <!-- Se genera dinámicamente desde JS -->
+            </div>
+        </section>
+
+        <!-- SECCIÓN 7: HISTORIAL / VAR -->
         <section id="historial" class="tab-content">
             <div class="section-title">
                 <h3>📜 Bitácora VAR & Auditoría</h3>
@@ -438,7 +530,7 @@
 
     <!-- PIE DE PÁGINA -->
     <footer class="main-footer">
-        <p>© 2024 - Liga Oficial de Cervezas entre Amigos. Todos los derechos reservados.</p>
+        <p>© 2026 - Liga TribunBirrato. Todos los derechos reservados.</p>
     </footer>
 
     <!-- SCRIPT PRINCIPAL -->

@@ -116,7 +116,7 @@ body {
 
 .main-nav {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.45rem;
     flex-wrap: wrap;
 }
 
@@ -124,12 +124,12 @@ body {
     background: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    padding: 0.6rem 1rem;
+    padding: 0.55rem 0.85rem;
     border-radius: 6px;
     cursor: pointer;
     font-family: var(--font-body);
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     transition: all 0.25s ease;
 }
 
@@ -511,6 +511,158 @@ body {
     color: var(--text-secondary);
 }
 
+/* ==========================================================================
+   HISTÓRICO DE VUELTAS
+   ========================================================================== */
+.current-vuelta-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+}
+
+.vuelta-stat-box {
+    background: #0d121b;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.8rem;
+    text-align: center;
+}
+
+.vuelta-stat-box .stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+}
+
+.vuelta-stat-box strong {
+    color: var(--accent-gold);
+    font-size: 1rem;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: #0d121b;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-green);
+    cursor: pointer;
+}
+
+.vueltas-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.vuelta-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.vuelta-card-header {
+    background: linear-gradient(135deg, #1e283a 0%, #111723 100%);
+    padding: 1.2rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.vuelta-title-group h4 {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    color: var(--accent-gold);
+    line-height: 1.1;
+}
+
+.vuelta-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.champion-badge {
+    background: rgba(243, 156, 18, 0.18);
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold-light);
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.bars-count-badge {
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.vuelta-card-body {
+    padding: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.vuelta-subblock h5 {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin-bottom: 0.8rem;
+    border-left: 3px solid var(--accent-gold);
+    padding-left: 0.6rem;
+}
+
+.vuelta-mini-table th,
+.vuelta-mini-table td {
+    padding: 0.65rem 0.8rem;
+    font-size: 0.88rem;
+}
+
+.vuelta-bars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.vuelta-bar-item {
+    background: #0d121b;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.9rem;
+}
+
+.vuelta-bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.4rem;
+}
+
 /* FORMULARIOS GENERALES */
 .form-card {
     background: var(--bg-card);
@@ -876,6 +1028,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* RESPONSIVE PARA MÓVILES Y TABLETS */
+@media (max-width: 900px) {
+    .vuelta-card-body {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .header-container {
         flex-direction: row;
@@ -926,6 +1084,7 @@ input:focus, select:focus, textarea:focus {
     }
 
     .form-row { flex-direction: column; }
+    .current-vuelta-summary { grid-template-columns: 1fr; }
     .podium-container { flex-direction: column; align-items: center; }
     .podium-item { max-width: 100%; width: 100%; }
     .podium-item.first { order: 1; transform: none; }

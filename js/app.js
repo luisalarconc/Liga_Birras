@@ -1,5 +1,5 @@
 // ==========================================================================
-// CONFIGURACIÓN DE FIREBASE (ASEGÚRATE DE USAR TUS CLAVES REALES AQUÍ)
+// CONFIGURACIÓN DE FIREBASE (MANTÉN AQUÍ TUS CLAVES REALES DE FIREBASE)
 // ==========================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyBmYSgUb3eWOFBw1rvbJKMG210Oy3RtEH8",
@@ -25,8 +25,9 @@ let players = [];
 let historyLog = [];
 let currentBarSession = null;
 let evaluatedBars = [];
+let vueltasHistory = [];
 
-// Sincronización en tiempo real con sanitizado absoluto contra valores nulos/corruptos
+// Sincronización en tiempo real con sanitizado contra valores nulos o corruptos
 dbRef.on('value', (snapshot) => {
     const data = snapshot.val() || {};
     
@@ -36,21 +37,32 @@ dbRef.on('value', (snapshot) => {
         statusBox.classList.add('online');
     }
 
-    // Filtrar cualquier elemento nulo o mal formado dejado por ediciones manuales en Firebase
-    const rawPlayers = Array.isArray(data.players) ? data.players : (typeof data.players === 'object' ? Object.values(data.players) : []);
+    const rawPlayers = Array.isArray(data.players)
+        ? data.players
+        : (data.players && typeof data.players === 'object' ? Object.values(data.players) : []);
     players = rawPlayers.filter(p => p && typeof p === 'object' && p.id);
 
-    const rawHistory = Array.isArray(data.historyLog) ? data.historyLog : (typeof data.historyLog === 'object' ? Object.values(data.historyLog) : []);
+    const rawHistory = Array.isArray(data.historyLog)
+        ? data.historyLog
+        : (data.historyLog && typeof data.historyLog === 'object' ? Object.values(data.historyLog) : []);
     historyLog = rawHistory.filter(h => h && typeof h === 'object');
 
-    const rawBars = Array.isArray(data.evaluatedBars) ? data.evaluatedBars : (typeof data.evaluatedBars === 'object' ? Object.values(data.evaluatedBars) : []);
+    const rawBars = Array.isArray(data.evaluatedBars)
+        ? data.evaluatedBars
+        : (data.evaluatedBars && typeof data.evaluatedBars === 'object' ? Object.values(data.evaluatedBars) : []);
     evaluatedBars = rawBars.filter(b => b && typeof b === 'object');
+
+    const rawVueltas = Array.isArray(data.vueltasHistory)
+        ? data.vueltasHistory
+        : (data.vueltasHistory && typeof data.vueltasHistory === 'object' ? Object.values(data.vueltasHistory) : []);
+    vueltasHistory = rawVueltas.filter(v => v && typeof v === 'object');
 
     currentBarSession = (data.currentBarSession && typeof data.currentBarSession === 'object') ? data.currentBarSession : null;
 
     // Respaldo en localStorage
     localStorage.setItem('beer_league_players', JSON.stringify(players));
     localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
+    localStorage.setItem('beer_league_vueltas', JSON.stringify(vueltasHistory));
 
     renderAll();
 }, (error) => {
@@ -66,10 +78,12 @@ function saveDataToCloud() {
         players: players,
         historyLog: historyLog,
         currentBarSession: currentBarSession,
-        evaluatedBars: evaluatedBars
+        evaluatedBars: evaluatedBars,
+        vueltasHistory: vueltasHistory
     });
     localStorage.setItem('beer_league_players', JSON.stringify(players));
     localStorage.setItem('beer_league_history', JSON.stringify(historyLog));
+    localStorage.setItem('beer_league_vueltas', JSON.stringify(vueltasHistory));
 }
 
 // ==========================================================================
@@ -128,6 +142,7 @@ function renderAll() {
     renderPlayerCards();
     renderHistory();
     renderBarEvaluationSection();
+    renderVueltasSection();
 }
 
 // 1. Podio Top 3
@@ -261,6 +276,148 @@ function renderPlayerCards() {
 }
 
 // ==========================================================================
+// SECCIÓN DE HISTÓRICO DE VUELTAS
+// ==========================================================================
+function renderVueltasSection() {
+    const numEl = document.getElementById('current-vuelta-number');
+    const leaderEl = document.getElementById('current-vuelta-leader');
+    const barsCountEl = document.getElementById('current-vuelta-bars-count');
+    const listContainer = document.getElementById('vueltas-history-list');
+
+    const nextVueltaNumber = vueltasHistory.length + 1;
+    if (numEl) numEl.textContent = `Vuelta ${nextVueltaNumber}`;
+
+    if (leaderEl) {
+        if (players.length > 0) {
+            const sorted = [...players].sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0));
+            leaderEl.textContent = `${sorted[0].name} (${Number(sorted[0].points || 0).toFixed(2)} pts)`;
+        } else {
+            leaderEl.textContent = '-';
+        }
+    }
+
+    if (barsCountEl) {
+        barsCountEl.textContent = `${evaluatedBars.length} bar(es)`;
+    }
+
+    if (!listContainer) return;
+
+    if (vueltasHistory.length === 0) {
+        listContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center;">Todavía no se ha finalizado ninguna vuelta. Cuando finalices la vuelta actual aparecerá aquí su clasificación y sus bares.</p>';
+        return;
+    }
+
+    const reversedVueltas = vueltasHistory.map((vuelta, index) => ({ vuelta, index })).reverse();
+
+    listContainer.innerHTML = reversedVueltas.map(({ vuelta, index }) => {
+        const standings = Array.isArray(vuelta.standings) ? vuelta.standings.filter(Boolean) : [];
+        const bars = Array.isArray(vuelta.bars) ? vuelta.bars.filter(Boolean) : [];
+        const champion = standings[0]
+            ? `${standings[0].name} (${Number(standings[0].points || 0).toFixed(2)} pts)`
+            : 'Sin líder';
+
+        const standingsRowsHTML = standings.length > 0
+            ? standings.map((p, idx) => {
+                const medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`));
+                return `
+                    <tr>
+                        <td><strong>${medal}</strong></td>
+                        <td>
+                            <div class="player-info-cell">
+                                <img src="${p.avatar || DEFAULT_AVATAR}" alt="${p.name}" class="table-avatar" onerror="this.src='${DEFAULT_AVATAR}'">
+                                <div>
+                                    <strong>${p.name}</strong>
+                                    <small style="color:var(--text-secondary); display:block;">"${p.nickname || ''}"</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><strong style="color:var(--accent-gold);">${Number(p.points || 0).toFixed(2)} pts</strong></td>
+                    </tr>
+                `;
+            }).join('')
+            : '<tr><td colspan="3" style="text-align:center; color:var(--text-secondary);">Sin clasificación guardada</td></tr>';
+
+        const barsHTML = bars.length > 0
+            ? bars.map(bar => `
+                <div class="vuelta-bar-item">
+                    <div class="vuelta-bar-top">
+                        <div>
+                            <strong>🍻 ${bar.barName || 'Bar'}</strong>
+                            <small style="color:var(--text-secondary); display:block;">
+                                Recomendado por: <strong>${bar.promoterName || '-'}</strong> | 📅 ${bar.date || ''}
+                            </small>
+                        </div>
+                        <span class="bar-score-badge" style="font-size:1.3rem;">${Number(bar.finalScore || 0).toFixed(2)} / 10</span>
+                    </div>
+                    <div class="category-scores-list">
+                        <span>Originalidad: <strong>${bar.catAvg ? bar.catAvg.originalidad : '-'}</strong></span>
+                        <span>Formato: <strong>${bar.catAvg ? bar.catAvg.formato : '-'}</strong></span>
+                        <span>Gelibilidad: <strong>${bar.catAvg ? bar.catAvg.gelibilidad : '-'}</strong></span>
+                        <span>Idiosincrasia: <strong>${bar.catAvg ? bar.catAvg.idiosincrasia : '-'}</strong></span>
+                        <span>Papeo: <strong>${bar.catAvg ? bar.catAvg.papeo : '-'}</strong></span>
+                        <span>Precio: <strong>${bar.catAvg ? bar.catAvg.precio : '-'}</strong></span>
+                        <span>Parcabilidad: <strong>${(bar.catAvg && bar.catAvg.parcabilidad) ? bar.catAvg.parcabilidad : '-'}</strong></span>
+                    </div>
+                </div>
+            `).join('')
+            : '<p style="font-size:0.85rem; color:var(--text-secondary);">No se evaluaron bares en esta vuelta.</p>';
+
+        return `
+            <div class="vuelta-card">
+                <div class="vuelta-card-header">
+                    <div class="vuelta-title-group">
+                        <h4>🏁 ${vuelta.title || `Vuelta ${index + 1}`}</h4>
+                        <small style="color:var(--text-secondary);">Cerrada el ${vuelta.closedDate || ''}</small>
+                    </div>
+                    <div class="vuelta-badges">
+                        <span class="champion-badge">🏆 Campeón: ${champion}</span>
+                        <span class="bars-count-badge">🍻 ${bars.length} bar(es)</span>
+                        <button class="action-btn delete-player-btn" onclick="deleteVuelta(${index})" title="Eliminar vuelta del histórico">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="vuelta-card-body">
+                    <div class="vuelta-subblock">
+                        <h5>🏆 Clasificación de la Vuelta</h5>
+                        <div class="table-wrapper">
+                            <table class="sports-table vuelta-mini-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pos</th>
+                                        <th>Jugador</th>
+                                        <th>Puntos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${standingsRowsHTML}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="vuelta-subblock">
+                        <h5>🍻 Bares Recomendados y Puntuaciones</h5>
+                        <div class="vuelta-bars-list">
+                            ${barsHTML}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.deleteVuelta = function(index) {
+    const vuelta = vueltasHistory[index];
+    if (!vuelta) return;
+
+    if (confirm(`⚠️ ¿Deseas eliminar permanentemente "${vuelta.title || 'esta vuelta'}" del histórico?`)) {
+        vueltasHistory.splice(index, 1);
+        saveDataToCloud();
+    }
+};
+
+// ==========================================================================
 // SECCIÓN DE VALORACIÓN DE BAR DEL JUEVES
 // ==========================================================================
 function renderBarEvaluationSection() {
@@ -309,7 +466,6 @@ function renderBarEvaluationSection() {
     renderEvaluatedBarsHistory();
 }
 
-// Renderizado de lista de votos en la jornada activa
 function renderActiveVotesList(ratings) {
     const container = document.getElementById('active-votes-container');
     const list = document.getElementById('active-votes-list');
@@ -351,7 +507,6 @@ function renderActiveVotesList(ratings) {
     }).join('');
 }
 
-// Borrado de voto en jornada activa
 window.deleteActiveVote = function(index) {
     if (!currentBarSession || !Array.isArray(currentBarSession.ratings)) return;
     const vote = currentBarSession.ratings[index];
@@ -363,13 +518,12 @@ window.deleteActiveVote = function(index) {
     }
 };
 
-// Histórico de Bares Evaluados
 function renderEvaluatedBarsHistory() {
     const listContainer = document.getElementById('evaluated-bars-list');
     if (!listContainer) return;
 
     if (!evaluatedBars || evaluatedBars.length === 0) {
-        listContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; grid-column:1/-1;">Aún no se ha completado ninguna evaluación de bar esta temporada.</p>';
+        listContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; grid-column:1/-1;">Aún no se ha completado ninguna evaluación de bar en la vuelta actual.</p>';
         return;
     }
 
@@ -542,6 +696,86 @@ function compressImage(file, callback) {
 // LISTENERS DE FORMULARIOS
 // ==========================================================================
 function setupFormListeners() {
+    // 1. Finalizar Vuelta Actual
+    const closeVueltaForm = document.getElementById('close-vuelta-form');
+    if (closeVueltaForm) {
+        closeVueltaForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            if (currentBarSession && currentBarSession.active) {
+                alert("⚠️ Hay una valoración de bar abierta actualmente. Ciérrala antes de finalizar la vuelta para no perder sus puntos.");
+                return;
+            }
+
+            if (players.length === 0) {
+                alert("⚠️ No hay integrantes registrados para cerrar la vuelta.");
+                return;
+            }
+
+            const customNameInput = document.getElementById('vuelta-custom-name');
+            const resetCheckbox = document.getElementById('vuelta-reset-current');
+            const shouldReset = resetCheckbox ? resetCheckbox.checked : true;
+
+            const vueltaNum = vueltasHistory.length + 1;
+            const customName = customNameInput ? customNameInput.value.trim() : '';
+            const title = customName !== '' ? customName : `Vuelta ${vueltaNum}`;
+
+            const confirmMsg = shouldReset
+                ? `🏁 ¿Confirmas finalizar "${title}"?\n\nSe guardará la clasificación actual y los ${evaluatedBars.length} bar(es) evaluados, y se reiniciarán los puntos a 0 para la siguiente vuelta.`
+                : `🏁 ¿Confirmas guardar "${title}" en el histórico manteniendo los puntos actuales?`;
+
+            if (!confirm(confirmMsg)) return;
+
+            const sortedStandings = [...players]
+                .sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0))
+                .map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    nickname: p.nickname || '',
+                    beer: p.beer || '',
+                    avatar: p.avatar || DEFAULT_AVATAR,
+                    points: parseFloat((Number(p.points) || 0).toFixed(2)),
+                    moves: p.moves || 0
+                }));
+
+            const savedBars = JSON.parse(JSON.stringify(evaluatedBars));
+            const now = new Date();
+            const dateStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+            vueltasHistory.push({
+                id: Date.now(),
+                title: title,
+                closedDate: dateStr,
+                standings: sortedStandings,
+                bars: savedBars
+            });
+
+            if (shouldReset) {
+                players = players.map(p => ({
+                    ...p,
+                    points: 0,
+                    moves: 0
+                }));
+                evaluatedBars = [];
+            }
+
+            historyLog.push({
+                id: Date.now() + 1,
+                playerId: 0,
+                playerName: 'SISTEMA DE LIGA',
+                action: 'add',
+                points: 0,
+                reason: `Cierre oficial de "${title}" (Campeón: ${sortedStandings[0] ? sortedStandings[0].name : '-'})`,
+                date: dateStr
+            });
+
+            saveDataToCloud();
+            if (customNameInput) customNameInput.value = '';
+            alert(`🏆 ¡"${title}" guardada correctamente en el Histórico de Vueltas!`);
+        });
+    }
+
+    // 2. Iniciar sesión de valoración de bar
     const startSessionForm = document.getElementById('start-session-form');
     if (startSessionForm) {
         startSessionForm.addEventListener('submit', (e) => {
@@ -564,6 +798,7 @@ function setupFormListeners() {
         });
     }
 
+    // 3. Enviar valoración individual de bar
     const barRatingForm = document.getElementById('bar-rating-form');
     if (barRatingForm) {
         barRatingForm.addEventListener('submit', (e) => {
@@ -572,7 +807,6 @@ function setupFormListeners() {
 
             const evaluatorName = document.getElementById('evaluator-name').value;
 
-            // Soporte transparente para comas y puntos decimales
             const parseVal = (id) => {
                 const el = document.getElementById(id);
                 if (!el) return 0;
@@ -599,6 +833,7 @@ function setupFormListeners() {
         });
     }
 
+    // 4. Cerrar jornada de valoración de bar
     const closeSessionBtn = document.getElementById('close-session-btn');
     if (closeSessionBtn) {
         closeSessionBtn.addEventListener('click', () => {
@@ -664,6 +899,7 @@ function setupFormListeners() {
         });
     }
 
+    // 5. Registro manual de puntos
     const pointsForm = document.getElementById('points-form');
     if (pointsForm) {
         pointsForm.addEventListener('submit', (e) => {
@@ -704,6 +940,7 @@ function setupFormListeners() {
         });
     }
 
+    // 6. Fichar nuevo integrante
     const registerForm = document.getElementById('register-player-form');
     if (registerForm) {
         registerForm.addEventListener('submit', (e) => {
@@ -735,6 +972,7 @@ function setupFormListeners() {
         });
     }
 
+    // 7. Editar perfil de integrante
     const editForm = document.getElementById('edit-player-form');
     if (editForm) {
         editForm.addEventListener('submit', (e) => {
