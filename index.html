@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Liga TribunBirrato 🍺</title>
+    <link rel="icon" type="image/jpeg" href="logo_escudo.jpg">
     <!-- Fuentes estilo deportivo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,31 +14,125 @@
     <!-- Librerías Firebase (Compat v10) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <!-- Estilos internos para el logo -->
+    <!-- Recorte y encuadre exacto del escudo sin fondo -->
     <style>
-        .logo-shield-container {
-            width: 70px; /* Un poco más grande para el escudo detallado */
-            height: 70px;
+        .logo-shield-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
+            flex-shrink: 0;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.8));
+            transition: transform 0.25s ease;
         }
-        .logo-img {
-            max-width: 100%;
-            max-height: 100%;
+
+        .logo-shield-wrapper:hover {
+            transform: scale(1.06);
+        }
+
+        .logo-shield-cutout {
+            position: relative;
+            width: 68px;
+            height: 81.5px;
+            overflow: hidden;
+            clip-path: polygon(
+                51.39% 0.00%,
+                47.56% 0.29%,
+                41.46% 3.78%,
+                39.72% 4.07%,
+                38.33% 5.23%,
+                26.31% 9.01%,
+                13.24% 11.19%,
+                3.14% 11.77%,
+                1.57% 12.65%,
+                0.52% 13.95%,
+                0.00% 15.84%,
+                0.17% 67.73%,
+                1.22% 70.64%,
+                2.26% 72.09%,
+                5.57% 74.13%,
+                11.85% 75.44%,
+                15.33% 80.09%,
+                19.69% 84.45%,
+                24.56% 88.37%,
+                30.84% 92.44%,
+                34.32% 93.90%,
+                37.28% 95.78%,
+                48.95% 99.85%,
+                53.48% 98.98%,
+                60.98% 96.37%,
+                69.34% 92.15%,
+                77.70% 86.48%,
+                85.54% 78.63%,
+                88.50% 74.71%,
+                91.64% 69.62%,
+                94.60% 62.21%,
+                98.61% 58.72%,
+                99.65% 56.54%,
+                99.83% 18.31%,
+                99.30% 13.66%,
+                96.17% 11.77%,
+                82.93% 10.76%,
+                70.21% 8.14%,
+                59.23% 4.22%
+            );
+            -webkit-clip-path: polygon(
+                51.39% 0.00%,
+                47.56% 0.29%,
+                41.46% 3.78%,
+                39.72% 4.07%,
+                38.33% 5.23%,
+                26.31% 9.01%,
+                13.24% 11.19%,
+                3.14% 11.77%,
+                1.57% 12.65%,
+                0.52% 13.95%,
+                0.00% 15.84%,
+                0.17% 67.73%,
+                1.22% 70.64%,
+                2.26% 72.09%,
+                5.57% 74.13%,
+                11.85% 75.44%,
+                15.33% 80.09%,
+                19.69% 84.45%,
+                24.56% 88.37%,
+                30.84% 92.44%,
+                34.32% 93.90%,
+                37.28% 95.78%,
+                48.95% 99.85%,
+                53.48% 98.98%,
+                60.98% 96.37%,
+                69.34% 92.15%,
+                77.70% 86.48%,
+                85.54% 78.63%,
+                88.50% 74.71%,
+                91.64% 69.62%,
+                94.60% 62.21%,
+                98.61% 58.72%,
+                99.65% 56.54%,
+                99.83% 18.31%,
+                99.30% 13.66%,
+                96.17% 11.77%,
+                82.93% 10.76%,
+                70.21% 8.14%,
+                59.23% 4.22%
+            );
+        }
+
+        .logo-shield-cutout img {
+            position: absolute;
+            width: 245.30%;
+            height: 111.63%;
+            max-width: none;
+            left: -72.65%;
+            top: -5.81%;
             display: block;
-            border: 2px solid var(--accent-gold); /* Mantenemos el borde dorado alrededor del escudo */
-            border-radius: 8px; /* Un borde ligeramente redondeado para un aspecto de placa */
-            background-color: var(--bg-main); /* Fondo para la imagen, en caso de que el PNG no tenga transparencia perfecta */
-            padding: 2px; /* Espacio para el borde */
+            pointer-events: none;
         }
-        
-        /* Ajuste para el logo en móviles */
+
         @media (max-width: 768px) {
-            .logo-shield-container {
-                width: 55px;
-                height: 55px;
+            .logo-shield-cutout {
+                width: 54px;
+                height: 64.7px;
             }
         }
     </style>
@@ -48,10 +143,11 @@
     <header class="main-header">
         <div class="header-container">
             <div class="brand">
-                <!-- CONTENEDOR DEL NUEVO LOGO -->
-                <div class="logo-shield-container">
-                    <!-- Asegúrate de tener el archivo de imagen 'logo_escudo.png' en la misma carpeta -->
-                    <img src="logo_escudo.jpg" alt="Logo Liga TribunBirrato" class="logo-img">
+                <!-- ESCUDO RECORTADO SIN FONDO -->
+                <div class="logo-shield-wrapper">
+                    <div class="logo-shield-cutout">
+                        <img src="logo_escudo.jpg" alt="Escudo Liga TribunBirrato">
+                    </div>
                 </div>
                 <div class="brand-text">
                     <span class="league-tag">COMPETICIÓN OFICIAL</span>
@@ -364,7 +460,7 @@
                         <textarea id="point-reason" rows="3" placeholder="Ej: Puntualidad a las 20:00h (+1.25) / Sanción por no pagar a tiempo (-2) / Hielos (+0.5)..." required></textarea>
                     </div>
 
-                    <button type="submit" class="btn-primary">✍️ Registrar Acción en la Nibe</button>
+                    <button type="submit" class="btn-primary">✍️ Registrar Acción en la Nube</button>
                 </form>
             </div>
         </section>
